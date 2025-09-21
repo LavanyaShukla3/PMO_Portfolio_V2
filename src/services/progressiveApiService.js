@@ -523,6 +523,7 @@ function processPortfolioDataFromOptimizedEndpoint(apiResponse) {
                 CHILD_FINISH: mainInvestment?.TASK_FINISH || null,
                 CHILD_STATUS: mainInvestment?.INV_OVERALL_STATUS || hierarchyRecord.CHILD_STATUS,
                 COE_ROADMAP_PARENT_ID: hierarchyRecord.COE_ROADMAP_PARENT_ID,
+                COE_ROADMAP_PARENT_NAME: hierarchyRecord.COE_ROADMAP_PARENT_NAME, // CRITICAL: Include parent name for dropdown
                 COE_ROADMAP_TYPE: hierarchyRecord.COE_ROADMAP_TYPE
             };
 
