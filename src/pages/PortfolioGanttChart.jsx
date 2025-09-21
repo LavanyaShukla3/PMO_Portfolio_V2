@@ -484,7 +484,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     };
 
     return (
-        <div className="w-full flex flex-col">
+        <div className="w-full h-screen flex flex-col overflow-hidden">
             {/* Loading Status Badge - Top Right */}
             {loading && (
                 <div 
@@ -531,26 +531,34 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
             {!loading && !error && (
             <>
             {/* Compact Header */}
-            <div className="flex-shrink-0 px-3 py-2 bg-gray-50 border-b border-gray-200">
-                <div className="flex items-center justify-between gap-3">
-                    {/* Portfolio Selector */}
-                    <div className="flex items-center gap-2">
-                        <label className="font-medium text-sm text-gray-700">Portfolio:</label>
-                        <select
-                            value={selectedParent}
-                            onChange={handleParentChange}
-                            className="border border-gray-300 rounded px-2 py-1 bg-white text-sm min-w-0 max-w-[200px]"
-                        >
-                            {parentNames.map((name) => (
-                                <option key={name} value={name}>
-                                    {name}
-                                </option>
-                            ))}
-                        </select>
+            <div className="flex-shrink-0 px-2 py-2 bg-gray-50 border-b border-gray-200">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                    {/* Left Section: Portfolio Selector & Timeline */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                            <label className="font-medium text-sm text-gray-700 whitespace-nowrap">Portfolio:</label>
+                            <select
+                                value={selectedParent}
+                                onChange={handleParentChange}
+                                className="border border-gray-300 rounded px-2 py-1 bg-white text-sm min-w-[120px] max-w-[180px]"
+                            >
+                                {parentNames.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <TimelineViewDropdown
+                            selectedView={timelineView}
+                            onViewChange={handleTimelineViewChange}
+                            className="text-sm"
+                        />
                     </div>
 
-                    {/* Pagination Controls - Inline */}
-                    <div className="flex-1 flex justify-center">
+                    {/* Center: Pagination */}
+                    <div className="flex-1 flex justify-center min-w-0">
                         <PaginationControls
                             currentPage={currentPage}  
                             totalItems={filteredData.length}
@@ -559,133 +567,46 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                             compact={true}
                         />
                     </div>
-                </div>
-            </div>
-
-            {/* Fixed Header Area - Timeline Axis */}
-            <div className="flex-shrink-0 sticky top-0 z-20 bg-white border-b border-gray-200">
-                <div className="relative flex w-full">
-                    {/* Sticky Portfolio Names Header */}
-                    <div
-                        className="flex-shrink-0 bg-white border-r border-gray-200"
-                        style={{
-                            width: responsiveConstants.LABEL_WIDTH,
-                            position: 'sticky',
-                            left: 0,
-                            zIndex: 30,
-                        }}
-                    >
-                        <div
-                            className="flex items-center justify-between px-2 font-semibold text-gray-700"
-                            style={{
-                                height: responsiveConstants.TOUCH_TARGET_SIZE,
-                                fontSize: responsiveConstants.FONT_SIZE
-                            }}
-                        >
-                            <span className="truncate">Portfolios</span>
-                            {/* Responsive Zoom Controls */}
-                            <div className="flex items-center space-x-1 ml-2">
-                                <button
-                                    onClick={handleZoomOut}
-                                    disabled={zoomLevel <= 0.5}
-                                    className={`
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'w-10 h-8' : 'w-8 h-6'}
-                                        flex items-center justify-center bg-gray-100 hover:bg-gray-200
-                                        disabled:bg-gray-50 disabled:text-gray-300 rounded
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'text-sm' : 'text-xs'}
-                                        font-bold transition-colors
-                                    `}
-                                    title="Zoom Out (Show More Months)"
-                                >
-                                    −
-                                </button>
-                                <span
-                                    className={`
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'text-sm min-w-[45px]' : 'text-xs min-w-[35px]'}
-                                        text-gray-600 text-center font-medium
-                                    `}
-                                >
-                                    {Math.round(zoomLevel * 100)}%
-                                </span>
-                                <button
-                                    onClick={handleZoomIn}
-                                    disabled={zoomLevel >= 1.5}
-                                    className={`
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'w-10 h-8' : 'w-8 h-6'}
-                                        flex items-center justify-center bg-gray-100 hover:bg-gray-200
-                                        disabled:bg-gray-50 disabled:text-gray-300 rounded
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'text-sm' : 'text-xs'}
-                                        font-bold transition-colors
-                                    `}
-                                    title="Zoom In (Show Fewer Months)"
-                                >
-                                    +
-                                </button>
-                                {/* Reset button - hidden on very small screens */}
-                                <button
-                                    onClick={handleZoomReset}
-                                    className={`
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'text-sm px-2 py-1' : 'text-xs px-1'}
-                                        text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors
-                                        ${responsiveConstants.LABEL_WIDTH < 150 ? 'hidden' : 'block'}
-                                    `}
-                                    title="Reset to 100%"
-                                >
-                                    {responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'Reset' : '↺'}
-                                </button>
-                            </div>
+                    
+                    {/* Right Section: Compact Zoom & Legend */}
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={handleZoomOut}
+                                disabled={zoomLevel <= 0.5}
+                                className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
+                                title="Zoom Out"
+                            >
+                                −
+                            </button>
+                            <span className="text-xs text-gray-600 min-w-[35px] text-center font-medium">
+                                {Math.round(zoomLevel * 100)}%
+                            </span>
+                            <button
+                                onClick={handleZoomIn}
+                                disabled={zoomLevel >= 1.5}
+                                className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
+                                title="Zoom In"
+                            >
+                                +
+                            </button>
                         </div>
-                    </div>
-
-                    {/* Timeline View Dropdown and Milestone Legend */}
-                    <div className="flex-1 flex justify-between items-center px-2">
-                        <TimelineViewDropdown
-                            selectedView={timelineView}
-                            onViewChange={handleTimelineViewChange}
-                            className="text-sm"
-                        />
                         
-                        {/* Compact Milestone Legend */}
-                        <div className="flex items-center gap-2">
+                        {/* Mini Legend */}
+                        <div className="flex items-center gap-1 ml-2">
                             <span className="text-xs font-medium text-gray-600">Legend:</span>
-                            <div className="flex gap-2">
-                                {/* Incomplete Milestone */}
+                            <div className="flex gap-1">
                                 <div className="flex items-center gap-1">
-                                    <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="white"
-                                            stroke="#3B82F6"
-                                            strokeWidth="2"
-                                        />
+                                    <svg width="8" height="8" viewBox="0 0 16 16">
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="white" stroke="#3B82F6" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Complete</span>
+                                    <span className="text-xs text-gray-500">Done</span>
                                 </div>
-
-                                {/* Complete Milestone */}
                                 <div className="flex items-center gap-1">
-                                    <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="#3B82F6"
-                                            stroke="#3B82F6"
-                                            strokeWidth="2"
-                                        />
+                                    <svg width="8" height="8" viewBox="0 0 16 16">
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="#3B82F6" stroke="#3B82F6" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Incomplete</span>
-                                </div>
-
-                                {/* Stacked Milestones */}
-                                <div className="flex items-center gap-1">
-                                    <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="#1F2937"
-                                            stroke="white"
-                                            strokeWidth="2"
-                                        />
-                                    </svg>
-                                    <span className="text-xs text-gray-500">Multiple</span>
+                                    <span className="text-xs text-gray-500">Todo</span>
                                 </div>
                             </div>
                         </div>
@@ -693,47 +614,43 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                 </div>
             </div>
 
-            {/* Fixed-Width Timeline Axis */}
-            <div className="flex w-full border-b border-gray-200">
-                {/* Empty space to align with left panel */}
-                <div 
-                    className="flex-shrink-0 bg-gray-50 border-r border-gray-200"
-                    style={{ 
-                        width: responsiveConstants.LABEL_WIDTH,
-                        height: '40px' // Match timeline axis height
-                    }}
-                ></div>
-                
-                {/* Timeline Axis */}
-                <div 
-                    className="flex-1"
-                    style={{
-                        width: `calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`
-                    }}
-                >
-                    <TimelineAxis
-                        startDate={startDate}
-                        endDate={endDate}
-                        monthWidth={dynamicMonthWidth}
-                        fontSize={responsiveConstants.FONT_SIZE}
-                        totalWidth={`calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`}
-                    />
+            {/* Timeline Axis Header */}
+            <div className="flex-shrink-0 bg-white border-b border-gray-200">
+                <div className="flex">
+                    {/* Left Panel Header */}
+                    <div
+                        className="flex-shrink-0 bg-gray-50 border-r border-gray-200 flex items-center px-2"
+                        style={{ width: responsiveConstants.LABEL_WIDTH, height: '40px' }}
+                    >
+                        <span className="text-sm font-semibold text-gray-700 truncate">Portfolios</span>
+                    </div>
+                    
+                    {/* Timeline Axis */}
+                    <div className="flex-1 overflow-hidden">
+                        <TimelineAxis
+                            startDate={startDate}
+                            endDate={endDate}
+                            monthWidth={dynamicMonthWidth}
+                            fontSize={responsiveConstants.FONT_SIZE}
+                            totalWidth="100%"
+                        />
+                    </div>
                 </div>
             </div>
 
-            {/* Scrollable Content Area */}
-            <div className="relative flex w-full" style={{ minHeight: Math.max(400, getTotalHeight()) }}>
-                {/* Sticky Portfolio Names - Synchronized Scrolling */}
+
+
+            {/* Main Content Area - Flex Layout */}
+            <div className="flex-1 flex overflow-hidden">
+                {/* Left Panel - Portfolio Names */}
                 <div
                     ref={leftPanelScrollRef}
                     className="flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto"
                     style={{
-                        minWidth: responsiveConstants.LABEL_WIDTH,
-                        width: 'auto',
+                        width: responsiveConstants.LABEL_WIDTH,
                         position: 'sticky',
                         left: 0,
                         zIndex: 10,
-                        height: '100%',
                     }}
                     onScroll={handleLeftPanelScroll}
                 >
@@ -799,21 +716,21 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     </div>
                 </div>
 
-                {/* Fixed Width Timeline Content - No Horizontal Scroll */}
+                {/* Right Panel - Gantt Chart */}
                 <div
                     ref={ganttScrollRef}
-                    className="flex-1 overflow-y-auto"
-                    style={{
-                        width: `calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`
-                    }}
+                    className="flex-1 overflow-y-auto overflow-x-hidden"
                     onScroll={handleGanttScroll}
                 >
-                    <div className="relative w-full">
+                    <div className="relative w-full h-full">
                         <svg
                             width="100%"
+                            height="100%"
+                            viewBox={`0 0 ${Math.max(800, window.innerWidth - responsiveConstants.LABEL_WIDTH)} ${Math.max(400, getTotalHeight())}`}
+                            preserveAspectRatio="none"
                             style={{
-                                height: Math.max(400, getTotalHeight()),
-                                touchAction: 'pan-y' // Only allow vertical scrolling
+                                touchAction: 'pan-y', // Only allow vertical scrolling
+                                minHeight: Math.max(400, getTotalHeight())
                             }}
                             className="block"
                         >

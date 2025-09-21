@@ -202,10 +202,27 @@ const RegionRoadMap = () => {
     const [totalItems, setTotalItems] = useState(0);
     const [allData, setAllData] = useState([]); // Store all loaded data
 
-    // Timeline range - must be defined early for useMemos to use it
+    // Get timeline range based on selected view
     const { startDate, endDate } = getTimelineRangeForView(timelineView);
-    const totalMonths = differenceInMonths(endDate, startDate);
-    const monthWidth = Math.max(80, Math.min(150, 1200 / totalMonths)); // Dynamic width, min 80px, max 150px
+    console.log('📅 Region Timeline view:', timelineView);
+    console.log('📅 Region Timeline range:', startDate?.toISOString(), 'to', endDate?.toISOString());
+    
+    // Calculate total months dynamically based on selected timeline
+    const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
+    
+    // Calculate dynamic month width to fit viewport (no horizontal scrolling)
+    const availableGanttWidth = window.innerWidth - responsiveConstants.LABEL_WIDTH - 40; // 40px for margins/padding
+    const dynamicMonthWidth = Math.max(30, Math.floor(availableGanttWidth / totalMonths)); // Minimum 30px per month
+    
+    // Set monthWidth for template usage (matching PortfolioGanttChart pattern)
+    const monthWidth = dynamicMonthWidth;
+    
+    console.log('📐 Region Dynamic sizing:', {
+        totalMonths,
+        availableGanttWidth,
+        dynamicMonthWidth,
+        viewportWidth: window.innerWidth
+    });
 
     // PAGINATION FIX: Apply timeline filtering first, then pagination
     // Step 1: Apply timeline filtering to all data
@@ -270,10 +287,8 @@ const RegionRoadMap = () => {
         totalItems
     });
 
-    // Constrain total width to prevent horizontal overflow  
-    const calculatedWidth = monthWidth * totalMonths;
-    const maxAvailableWidth = typeof window !== 'undefined' ? window.innerWidth - responsiveConstants.LABEL_WIDTH - 50 : 1200;
-    const totalWidth = Math.min(calculatedWidth, maxAvailableWidth);
+    // Calculate total width for the timeline (matching responsive pattern)
+    const totalWidth = totalMonths * monthWidth;
 
     // Handle window resize for responsive behavior
     useEffect(() => {
@@ -732,7 +747,7 @@ const RegionRoadMap = () => {
     };
 
     return (
-        <div className="w-full flex flex-col relative">
+        <div className="w-full h-screen flex flex-col overflow-hidden">
             {/* Status Badge - Top Right (matches ProgramGanttChart) */}
             {loading && (
                 <div className="absolute top-4 right-4 z-50 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium shadow-md flex items-center gap-2">

@@ -158,12 +158,40 @@ export const getPast36MonthsRange = () => {
 };
 
 /**
+ * Get timeline range for "14 Months in Future" view
+ * Shows current month to 14 months ahead
+ * @returns {{startDate: Date, endDate: Date}} Timeline range
+ */
+export const getFuture14MonthsRange = () => {
+    const today = new Date();
+    const startDate = startOfMonth(today); // Start from current month
+    const endDate = startOfMonth(addMonths(today, 14)); // End 14 months from now
+    return { startDate, endDate };
+};
+
+/**
+ * Get timeline range for "14 Months in Past" view
+ * Shows 14 months ago to current month
+ * @returns {{startDate: Date, endDate: Date}} Timeline range
+ */
+export const getPast14MonthsRange = () => {
+    const today = new Date();
+    const startDate = startOfMonth(subMonths(today, 14)); // Start 14 months ago
+    const endDate = startOfMonth(addMonths(today, 1)); // End at end of current month
+    return { startDate, endDate };
+};
+
+/**
  * Get timeline range based on view selection
- * @param {string} viewType - 'current14', 'future24', 'past24', 'future36', or 'past36'
+ * @param {string} viewType - 'current14', 'future14', 'past14', 'future24', 'past24', 'future36', or 'past36'
  * @returns {{startDate: Date, endDate: Date}} Timeline range
  */
 export const getTimelineRangeForView = (viewType = 'current14') => {
     switch (viewType) {
+        case 'future14':
+            return getFuture14MonthsRange();
+        case 'past14':
+            return getPast14MonthsRange();
         case 'future24':
             return getFuture24MonthsRange();
         case 'past24':

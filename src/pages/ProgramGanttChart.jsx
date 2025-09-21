@@ -203,15 +203,28 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
     const ganttScrollRef = useRef(null);
     const leftPanelScrollRef = useRef(null);
 
-    // Dynamic timeline range based on selected view
+    // Get timeline range based on selected view
     const { startDate, endDate } = getTimelineRangeForView(timelineView);
-    const totalMonths = differenceInMonths(endDate, startDate);
-    const monthWidth = Math.max(80, Math.min(150, 1200 / totalMonths)); // Dynamic width, min 80px, max 150px
+    console.log('📅 Program Timeline view:', timelineView);
+    console.log('📅 Program Timeline range:', startDate?.toISOString(), 'to', endDate?.toISOString());
     
-    // Constrain total width to prevent horizontal overflow
-    const calculatedWidth = monthWidth * totalMonths;
-    const maxAvailableWidth = typeof window !== 'undefined' ? window.innerWidth - responsiveConstants.LABEL_WIDTH - 50 : 1200;
-    const totalWidth = Math.min(calculatedWidth, maxAvailableWidth);
+    // Calculate total months dynamically based on selected timeline
+    const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
+    
+    // Calculate dynamic month width to fit viewport (no horizontal scrolling)
+    const availableGanttWidth = window.innerWidth - responsiveConstants.LABEL_WIDTH - 40; // 40px for margins/padding
+    const dynamicMonthWidth = Math.max(30, Math.floor(availableGanttWidth / totalMonths)); // Minimum 30px per month
+    
+    // Calculate total width for the timeline (used by SVG)
+    const totalWidth = totalMonths * dynamicMonthWidth;
+    
+    console.log('📐 Program Dynamic sizing:', {
+        totalMonths,
+        availableGanttWidth,
+        dynamicMonthWidth,
+        totalWidth,
+        viewportWidth: window.innerWidth
+    });
 
     // Handle window resize and zoom changes
     useEffect(() => {
@@ -498,7 +511,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         }
     };
 
-    const calculateMilestoneLabelHeight = (milestones, monthWidth = 100) => {
+    const calculateMilestoneLabelHeight = (milestones, monthWidth = dynamicMonthWidth) => {
         if (!milestones?.length) return { total: 0, above: 0, below: 0 };
 
         // Process milestones to get their positions and grouping info
@@ -570,7 +583,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         const ganttBarHeight = isProgramHeader ? 14 : 12; // Fixed height for the actual bar
         
         // STEP 2: Calculate milestone label space needed (detailed breakdown)
-        const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, responsiveConstants.MONTH_WIDTH);
+        const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, dynamicMonthWidth);
         
         // STEP 3: Calculate project name space (minimal, just enough to display)
         const projectName = project.displayName || project.name || '';
@@ -606,7 +619,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
     };
 
     return (
-        <div className="w-full flex flex-col relative">
+        <div className="w-full h-screen flex flex-col overflow-hidden">
             {/* Status Badge - Top Right */}
             {loading && (
                 <div className="absolute top-4 right-4 z-50 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium shadow-md flex items-center gap-2">
@@ -633,24 +646,24 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
             {(allData.length > 0 || !loading) && !error && (
             <>
             {/* Compact Header */}
-            <div className="flex-shrink-0 px-3 py-2 bg-gray-50 border-b border-gray-200">
-                <div className="flex items-center justify-between gap-3">
-                    {/* Left: Breadcrumb and Program Selector */}
-                    <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 px-2 py-2 bg-gray-50 border-b border-gray-200">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                    {/* Left Section */}
+                    <div className="flex items-center gap-3 flex-wrap">
                         {onBackToPortfolio && (
                             <button
                                 onClick={onBackToPortfolio}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
                             >
                                 ← Portfolio
                             </button>
                         )}
                         <div className="flex items-center gap-2">
-                            <label className="font-medium text-sm text-gray-700">Program:</label>
+                            <label className="font-medium text-sm text-gray-700 whitespace-nowrap">Program:</label>
                             <select
                                 value={selectedProgram}
                                 onChange={handleProgramChange}
-                                className="border border-gray-300 rounded px-2 py-1 bg-white text-sm min-w-0 max-w-[200px]"
+                                className="border border-gray-300 rounded px-2 py-1 bg-white text-sm min-w-[120px] max-w-[180px]"
                             >
                                 {programNames.map((name) => (
                                     <option key={name} value={name}>
@@ -659,10 +672,16 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                 ))}
                             </select>
                         </div>
+                        
+                        <TimelineViewDropdown
+                            selectedView={timelineView}
+                            onViewChange={setTimelineView}
+                            className="text-sm"
+                        />
                     </div>
 
-                    {/* Center: Pagination Controls */}
-                    <div className="flex-1 flex justify-center">
+                    {/* Center: Pagination */}
+                    <div className="flex-1 flex justify-center min-w-0">
                         <PaginationControls
                             currentPage={currentPage}
                             totalItems={totalItems}
@@ -671,135 +690,46 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                             compact={true}
                         />
                     </div>
-                </div>
-            </div>
-
-
-
-            {/* Fixed Header Area - Timeline Axis */}
-            <div className="flex-shrink-0 sticky top-0 z-20 bg-white border-b border-gray-200">
-                <div className="relative flex w-full">
-                    {/* Sticky Program Names Header */}
-                    <div
-                        className="flex-shrink-0 bg-white border-r border-gray-200"
-                        style={{
-                            width: responsiveConstants.LABEL_WIDTH,
-                            position: 'sticky',
-                            left: 0,
-                            zIndex: 30,
-                        }}
-                    >
-                        <div
-                            className="flex items-center justify-between px-2 font-semibold text-gray-700"
-                            style={{
-                                height: responsiveConstants.TOUCH_TARGET_SIZE,
-                                fontSize: responsiveConstants.FONT_SIZE
-                            }}
-                        >
-                            <span className="truncate">Programs</span>
-                            {/* Responsive Zoom Controls */}
-                            <div className="flex items-center space-x-1 ml-2">
-                                <button
-                                    onClick={handleZoomOut}
-                                    disabled={zoomLevel <= 0.5}
-                                    className={`
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'w-10 h-8' : 'w-8 h-6'}
-                                        flex items-center justify-center bg-gray-100 hover:bg-gray-200
-                                        disabled:bg-gray-50 disabled:text-gray-300 rounded
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'text-sm' : 'text-xs'}
-                                        font-bold transition-colors
-                                    `}
-                                    title="Zoom Out (Show More Months)"
-                                >
-                                    −
-                                </button>
-                                <span
-                                    className={`
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'text-sm min-w-[45px]' : 'text-xs min-w-[35px]'}
-                                        text-gray-600 text-center font-medium
-                                    `}
-                                >
-                                    {Math.round(zoomLevel * 100)}%
-                                </span>
-                                <button
-                                    onClick={handleZoomIn}
-                                    disabled={zoomLevel >= 1.5}
-                                    className={`
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'w-10 h-8' : 'w-8 h-6'}
-                                        flex items-center justify-center bg-gray-100 hover:bg-gray-200
-                                        disabled:bg-gray-50 disabled:text-gray-300 rounded
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'text-sm' : 'text-xs'}
-                                        font-bold transition-colors
-                                    `}
-                                    title="Zoom In (Show Fewer Months)"
-                                >
-                                    +
-                                </button>
-                                {/* Reset button - hidden on very small screens */}
-                                <button
-                                    onClick={handleZoomReset}
-                                    className={`
-                                        ${responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'text-sm px-2 py-1' : 'text-xs px-1'}
-                                        text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors
-                                        ${responsiveConstants.LABEL_WIDTH < 150 ? 'hidden' : 'block'}
-                                    `}
-                                    title="Reset to 100%"
-                                >
-                                    {responsiveConstants.TOUCH_TARGET_SIZE > 24 ? 'Reset' : '↺'}
-                                </button>
-                            </div>
+                    
+                    {/* Right Section: Compact Zoom & Legend */}
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={handleZoomOut}
+                                disabled={zoomLevel <= 0.5}
+                                className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
+                                title="Zoom Out"
+                            >
+                                −
+                            </button>
+                            <span className="text-xs text-gray-600 min-w-[35px] text-center font-medium">
+                                {Math.round(zoomLevel * 100)}%
+                            </span>
+                            <button
+                                onClick={handleZoomIn}
+                                disabled={zoomLevel >= 1.5}
+                                className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
+                                title="Zoom In"
+                            >
+                                +
+                            </button>
                         </div>
-                    </div>
-
-                    {/* Timeline View Dropdown and Milestone Legend */}
-                    <div className="flex-1 flex justify-between items-center px-2">
-                        <TimelineViewDropdown
-                            selectedView={timelineView}
-                            onViewChange={setTimelineView}
-                            className="text-sm"
-                        />
                         
-                        {/* Compact Milestone Legend */}
-                        <div className="flex items-center gap-2">
+                        {/* Mini Legend */}
+                        <div className="flex items-center gap-1 ml-2">
                             <span className="text-xs font-medium text-gray-600">Legend:</span>
-                            <div className="flex gap-2">
-                                {/* Incomplete Milestone */}
+                            <div className="flex gap-1">
                                 <div className="flex items-center gap-1">
-                                    <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="white"
-                                            stroke="#3B82F6"
-                                            strokeWidth="2"
-                                        />
+                                    <svg width="8" height="8" viewBox="0 0 16 16">
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="white" stroke="#3B82F6" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Complete</span>
+                                    <span className="text-xs text-gray-500">Done</span>
                                 </div>
-
-                                {/* Complete Milestone */}
                                 <div className="flex items-center gap-1">
-                                    <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="#3B82F6"
-                                            stroke="#3B82F6"
-                                            strokeWidth="2"
-                                        />
+                                    <svg width="8" height="8" viewBox="0 0 16 16">
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="#3B82F6" stroke="#3B82F6" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Incomplete</span>
-                                </div>
-
-                                {/* Stacked Milestones */}
-                                <div className="flex items-center gap-1">
-                                    <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="#1F2937"
-                                            stroke="white"
-                                            strokeWidth="2"
-                                        />
-                                    </svg>
-                                    <span className="text-xs text-gray-500">Multiple</span>
+                                    <span className="text-xs text-gray-500">Todo</span>
                                 </div>
                             </div>
                         </div>
@@ -807,47 +737,43 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                 </div>
             </div>
 
-            {/* Fixed-Width Timeline Axis */}
-            <div className="flex w-full border-b border-gray-200">
-                {/* Empty space to align with left panel */}
-                <div 
-                    className="flex-shrink-0 bg-gray-50 border-r border-gray-200"
-                    style={{ 
-                        width: responsiveConstants.LABEL_WIDTH,
-                        height: '40px' // Match timeline axis height
-                    }}
-                ></div>
-                
-                {/* Timeline Axis */}
-                <div 
-                    className="flex-1"
-                    style={{
-                        width: `calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`
-                    }}
-                >
-                    <TimelineAxis
-                        startDate={startDate}
-                        endDate={endDate}
-                        monthWidth={monthWidth}
-                        fontSize={responsiveConstants.FONT_SIZE}
-                        totalWidth={`calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`}
-                    />
+
+
+            {/* Timeline Axis Header */}
+            <div className="flex-shrink-0 bg-white border-b border-gray-200">
+                <div className="flex">
+                    {/* Left Panel Header */}
+                    <div
+                        className="flex-shrink-0 bg-gray-50 border-r border-gray-200 flex items-center px-2"
+                        style={{ width: responsiveConstants.LABEL_WIDTH, height: '40px' }}
+                    >
+                        <span className="text-sm font-semibold text-gray-700 truncate">Programs</span>
+                    </div>
+                    
+                    {/* Timeline Axis */}
+                    <div className="flex-1 overflow-hidden">
+                        <TimelineAxis
+                            startDate={startDate}
+                            endDate={endDate}
+                            monthWidth={dynamicMonthWidth}
+                            fontSize={responsiveConstants.FONT_SIZE}
+                            totalWidth="100%"
+                        />
+                    </div>
                 </div>
             </div>
 
-            {/* Scrollable Content Area */}
-            <div className="relative flex w-full" style={{ minHeight: Math.max(400, getTotalHeight()) }}>
-                {/* Sticky Program Names - Synchronized Scrolling */}
+            {/* Main Content Area - Flex Layout */}
+            <div className="flex-1 flex overflow-hidden">
+                {/* Left Panel - Program Names */}
                 <div
                     ref={leftPanelScrollRef}
-                    className="flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto overflow-x-auto"
+                    className="flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto"
                     style={{
-                        minWidth: responsiveConstants.LABEL_WIDTH,
-                        width: 'auto',
+                        width: responsiveConstants.LABEL_WIDTH,
                         position: 'sticky',
                         left: 0,
                         zIndex: 10,
-                        height: '100%',
                     }}
                     onScroll={handleLeftPanelScroll}
                 >
@@ -914,23 +840,21 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                     </div>
                 </div>
 
-                {/* Scrollable Timeline Content */}
+                {/* Right Panel - Gantt Chart */}
                 <div
                     ref={ganttScrollRef}
-                    className="flex-1 overflow-x-auto"
-                    style={{
-                        width: `${responsiveConstants.MONTH_WIDTH * responsiveConstants.VISIBLE_MONTHS}px`,
-                        maxWidth: `calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`
-                    }}
+                    className="flex-1 overflow-y-auto overflow-x-hidden"
                     onScroll={handleGanttScroll}
                 >
-                    <div className="relative" style={{ width: totalWidth }}>
+                    <div className="relative w-full h-full">
                         <svg
-                            key={`program-gantt-${selectedProgram}-${allData.length}`} // Add key to force re-render
-                            width={totalWidth}
+                            width="100%"
+                            height="100%"
+                            viewBox={`0 0 ${Math.max(800, window.innerWidth - responsiveConstants.LABEL_WIDTH)} ${Math.max(400, getTotalHeight())}`}
+                            preserveAspectRatio="none"
                             style={{
-                                height: Math.max(400, getTotalHeight()),
-                                touchAction: 'pan-x pan-y' // Enable smooth touch scrolling
+                                touchAction: 'pan-y', // Only allow vertical scrolling
+                                minHeight: Math.max(400, getTotalHeight())
                             }}
                             className="block"
                         >
@@ -945,8 +869,8 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
 
                                 const projectStartDate = parseDate(project.startDate);
                                 const projectEndDate = parseDate(project.endDate);
-                                const startX = calculatePosition(projectStartDate, startDate, responsiveConstants.MONTH_WIDTH);
-                                const endX = calculatePosition(projectEndDate, startDate, responsiveConstants.MONTH_WIDTH);
+                                const startX = calculatePosition(projectStartDate, startDate, dynamicMonthWidth);
+                                const endX = calculatePosition(projectEndDate, startDate, dynamicMonthWidth);
                                 const width = endX - startX;
                                 
                                 // Debug block removed
@@ -955,14 +879,14 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                 const totalHeight = calculateBarHeight(project);
                                 
                                 // Get detailed milestone label height breakdown
-                                const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, responsiveConstants.MONTH_WIDTH);
+                                const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, dynamicMonthWidth);
                                 
                                 // Position Gantt bar accounting for milestone labels above it
                                 const ganttBarY = yOffset + Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)) + milestoneHeights.above;
                                 const milestoneY = ganttBarY + 6; // Center milestones with the 12px bar
 
                                 // Process milestones with position information
-                                const milestones = processMilestonesWithPosition(project.milestones, startDate, responsiveConstants.MONTH_WIDTH, projectEndDate);
+                                const milestones = processMilestonesWithPosition(project.milestones, startDate, dynamicMonthWidth, projectEndDate);
 
                                 const isProgram = project.isProgram;
                                 const isProgramHeader = project.isProgramHeader;

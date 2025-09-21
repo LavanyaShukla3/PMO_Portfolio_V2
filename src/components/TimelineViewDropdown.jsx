@@ -8,6 +8,16 @@ const TimelineViewDropdown = ({ selectedView, onViewChange, className = '' }) =>
             description: 'Previous month to 12 months ahead (14 months total)'
         },
         {
+            id: 'future14',
+            label: '14 Months in Future',
+            description: 'Current month to 14 months ahead'
+        },
+        {
+            id: 'past14',
+            label: '14 Months in Past', 
+            description: '14 months ago to current month'
+        },
+        {
             id: 'future24',
             label: '24 Months in Future',
             description: 'Current month to 24 months ahead'

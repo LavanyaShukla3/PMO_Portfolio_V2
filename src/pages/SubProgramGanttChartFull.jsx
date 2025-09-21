@@ -7,7 +7,7 @@ import { getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calcul
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
-import { differenceInMonths } from 'date-fns';
+import { differenceInMonths, differenceInDays } from 'date-fns';
 
 const ZOOM_LEVELS = {
     0.5: { MONTH_WIDTH: 40, VISIBLE_MONTHS: 24, FONT_SIZE: '8px', LABEL_WIDTH: 150, BASE_BAR_HEIGHT: 4, TOUCH_TARGET_SIZE: 20, MILESTONE_LABEL_HEIGHT: 6, MILESTONE_FONT_SIZE: '7px', PROJECT_SCALE: 2.0, ROW_PADDING: 4 },
@@ -319,6 +319,32 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         if (subProgramData && subProgramData.projects) {
             console.log('✅ Using cached subprogram data:', subProgramData);
             
+            // Extract unique program names from cached data
+            const uniquePrograms = new Set();
+            console.log('🔍 Cached data - Sample projects for program name extraction:', subProgramData.projects.slice(0, 3));
+            
+            subProgramData.projects.forEach(project => {
+                // Check all possible program name properties
+                const possibleProgramNames = [
+                    project.COE_ROADMAP_PARENT_NAME,
+                    project.INV_FUNCTION,
+                    project.PARENT_NAME,
+                    project.PROGRAM_NAME,
+                    project.program_name,
+                    project.parent_name
+                ];
+                
+                possibleProgramNames.forEach(name => {
+                    if (name && typeof name === 'string' && name.trim()) {
+                        uniquePrograms.add(name.trim());
+                    }
+                });
+            });
+            
+            console.log('🔍 Extracted unique programs from cache:', Array.from(uniquePrograms));
+            const sortedPrograms = ['All', ...Array.from(uniquePrograms).sort()];
+            setProgramNames(sortedPrograms);
+            
             // Filter by selected program if specified
             let filteredProjects = subProgramData.projects;
             if (selectedProgramId) {
@@ -385,16 +411,29 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     projects: combinedProjects
                 };
                 
-                // Extract unique program names from projects (like the original logic)
+                // Extract unique program names from projects (with enhanced property checking)
                 const uniquePrograms = new Set();
+                console.log('🔍 Sub-program data - Sample projects for program name extraction:', combinedProjects.slice(0, 3));
+                
                 combinedProjects.forEach(project => {
-                    if (project.COE_ROADMAP_PARENT_NAME && project.COE_ROADMAP_PARENT_NAME.trim()) {
-                        uniquePrograms.add(project.COE_ROADMAP_PARENT_NAME);
-                    }
-                    if (project.INV_FUNCTION && project.INV_FUNCTION.trim()) {
-                        uniquePrograms.add(project.INV_FUNCTION);
-                    }
+                    // Check all possible program name properties
+                    const possibleProgramNames = [
+                        project.COE_ROADMAP_PARENT_NAME,
+                        project.INV_FUNCTION,
+                        project.PARENT_NAME,
+                        project.PROGRAM_NAME,
+                        project.program_name,
+                        project.parent_name
+                    ];
+                    
+                    possibleProgramNames.forEach(name => {
+                        if (name && typeof name === 'string' && name.trim()) {
+                            uniquePrograms.add(name.trim());
+                        }
+                    });
                 });
+                
+                console.log('🔍 Extracted unique programs:', Array.from(uniquePrograms));
                 
                 // Create sorted list with "All" first
                 const sortedPrograms = ['All', ...Array.from(uniquePrograms).sort()];
@@ -608,8 +647,23 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
 
         // Get timeline date range BEFORE filtering
         const { startDate, endDate } = getTimelineRangeForView(timelineView);
-        const totalMonths = differenceInMonths(endDate, startDate);
-        const monthWidth = Math.max(80, Math.min(150, 1200 / totalMonths)); // Dynamic width, min 80px, max 150px
+        console.log('📅 SubProgram Timeline view:', timelineView);
+        console.log('📅 SubProgram Timeline range:', startDate?.toISOString(), 'to', endDate?.toISOString());
+        
+        // Calculate total months dynamically based on selected timeline
+        const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
+        
+        // Calculate dynamic month width to fit viewport (no horizontal scrolling)
+        const availableGanttWidth = window.innerWidth - constants.LABEL_WIDTH - 40; // 40px for margins/padding
+        const dynamicMonthWidth = Math.max(30, Math.floor(availableGanttWidth / totalMonths)); // Minimum 30px per month
+        const monthWidth = dynamicMonthWidth;
+        
+        console.log('📐 SubProgram Dynamic sizing:', {
+            totalMonths,
+            availableGanttWidth,
+            dynamicMonthWidth,
+            viewportWidth: window.innerWidth
+        });
 
         // Filter projects to only include those within the timeline viewport
         projects = projects.filter(project => {
@@ -668,11 +722,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         }
     });
 
-    // Timeline variables already defined above during filtering
-    // Constrain total width to prevent horizontal overflow
-    const calculatedWidth = monthWidth * totalMonths;
-    const maxAvailableWidth = typeof window !== 'undefined' ? window.innerWidth - constants.LABEL_WIDTH - 50 : 1200;
-    const timelineWidth = Math.min(calculatedWidth, maxAvailableWidth);
+    // Calculate total width for the timeline (matching responsive pattern)
+    const totalWidth = totalMonths * monthWidth;
+    const timelineWidth = totalWidth;
     
     // Process project phases for rendering - handle hierarchical structure
     const allProjectRows = [];
