@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head><title>API Test</title></head>
+<body>
+<h1>API Test</h1>
+<div id="output">Testing...</div>
+<script>
+const testResponse = async () => {
+    try {
+        const response = await fetch('http://localhost:5000/api/data');
+        const result = await response.json();
+        
+        const output = document.getElementById('output');
+        output.innerHTML = `
+            <p>API Status: ${result.status}</p>
+            <p>Hierarchy count: ${result.data.hierarchy.length}</p>
+            <p>Investment count: ${result.data.investment.length}</p>
+        `;
+        
+        const subPrograms = result.data.hierarchy.filter(h => h.COE_ROADMAP_TYPE === 'Sub-Program');
+        output.innerHTML += `<p>Sub-Programs found: ${subPrograms.length}</p>`;
+        
+        if (subPrograms.length > 0) {
+            const firstSubProgram = subPrograms[0];
+            output.innerHTML += `<p>First Sub-Program: ${firstSubProgram.CHILD_ID}</p>`;
+            
+            const phases = result.data.investment.filter(inv => 
+                inv.INV_EXT_ID === firstSubProgram.CHILD_ID && inv.ROADMAP_ELEMENT === 'Phases'
+            );
+            output.innerHTML += `<p>Phases for first Sub-Program: ${phases.length}</p>`;
+            phases.forEach(phase => {
+                output.innerHTML += `<p style="margin-left: 20px;">Phase: ${phase.TASK_NAME} (${phase.TASK_START?.substring(0,10)} to ${phase.TASK_FINISH?.substring(0,10)})</p>`;
+            });
+        }
+        
+    } catch (error) {
+        document.getElementById('output').innerHTML = 'Error: ' + error.message;
+    }
+};
+testResponse();
+</script>
+</body>
+</html>

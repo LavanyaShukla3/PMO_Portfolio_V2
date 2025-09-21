@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMO Portfolio - API Performance Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: #fafafa;
+        }
+        .test-button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background-color: #005a87;
+        }
+        .test-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        .result-item {
+            margin: 10px 0;
+            padding: 8px;
+            border-left: 4px solid #007cba;
+            background-color: #f8f9fa;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .timing {
+            font-weight: bold;
+            color: #007cba;
+        }
+        .summary-stats {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+        }
+        .data-info {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .clear-button {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .clear-button:hover {
+            background-color: #545b62;
+        }
+        .run-all-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .run-all-button:hover {
+            background-color: #218838;
+        }
+        .run-all-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 PMO Portfolio API Performance Test</h1>
+        <p style="text-align: center; color: #6c757d; margin-bottom: 30px;">
+            Test individual API endpoints to measure response times for each Gantt chart page
+        </p>
+
+        <button id="runAllBtn" class="run-all-button" onclick="runAllTests()">
+            🏃‍♂️ Run All Tests
+        </button>
+
+        <!-- Main Data Endpoint Test -->
+        <div class="test-section">
+            <h3>📊 Main Data Endpoint (/api/data)</h3>
+            <p>Core endpoint used by all 4 pages - fetches both hierarchy and investment data</p>
+            <button class="test-button" onclick="testEndpoint('main')">Test /api/data</button>
+            <button class="clear-button" onclick="clearResults('main')">Clear</button>
+            <div id="main-results" class="results" style="display: none;"></div>
+        </div>
+
+        <!-- Portfolio Page Test -->
+        <div class="test-section">
+            <h3>🎯 Portfolio Page Data Processing</h3>
+            <p>Tests the complete data processing pipeline for PortfolioGanttChart.jsx</p>
+            <button class="test-button" onclick="testPortfolioProcessing()">Test Portfolio Processing</button>
+            <button class="clear-button" onclick="clearResults('portfolio')">Clear</button>
+            <div id="portfolio-results" class="results" style="display: none;"></div>
+        </div>
+
+        <!-- Program Page Test -->
+        <div class="test-section">
+            <h3>🏗️ Program Page Data Processing</h3>
+            <p>Tests the complete data processing pipeline for ProgramGanttChart.jsx</p>
+            <button class="test-button" onclick="testProgramProcessing()">Test Program Processing</button>
+            <button class="clear-button" onclick="clearResults('program')">Clear</button>
+            <div id="program-results" class="results" style="display: none;"></div>
+        </div>
+
+        <!-- Sub-Program Page Test -->
+        <div class="test-section">
+            <h3>🔧 Sub-Program Page Data Processing</h3>
+            <p>Tests the complete data processing pipeline for SubProgramGanttChartFull.jsx</p>
+            <button class="test-button" onclick="testSubProgramProcessing()">Test Sub-Program Processing</button>
+            <button class="clear-button" onclick="clearResults('subprogram')">Clear</button>
+            <div id="subprogram-results" class="results" style="display: none;"></div>
+        </div>
+
+        <!-- Region Page Test -->
+        <div class="test-section">
+            <h3>🌍 Region Page Data Processing</h3>
+            <p>Tests the complete data processing pipeline for RegionRoadMap.jsx</p>
+            <button class="test-button" onclick="testRegionProcessing()">Test Region Processing</button>
+            <button class="clear-button" onclick="clearResults('region')">Clear</button>
+            <div id="region-results" class="results" style="display: none;"></div>
+        </div>
+
+        <!-- Cache Performance Test -->
+        <div class="test-section">
+            <h3>💾 Cache Performance Test</h3>
+            <p>Test cache hit vs cache miss performance</p>
+            <button class="test-button" onclick="testCachePerformance()">Test Cache Performance</button>
+            <button class="test-button" onclick="clearCache()">Clear Cache</button>
+            <button class="clear-button" onclick="clearResults('cache')">Clear Results</button>
+            <div id="cache-results" class="results" style="display: none;"></div>
+        </div>
+
+        <!-- Summary Statistics -->
+        <div id="summary" class="summary-stats" style="display: none;">
+            <h3>📈 Performance Summary</h3>
+            <div id="summary-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        let testResults = {};
+
+        // Utility function to format time
+        function formatTime(ms) {
+            if (ms < 1000) return `${ms.toFixed(0)}ms`;
+            return `${(ms / 1000).toFixed(2)}s`;
+        }
+
+        // Utility function to add result
+        function addResult(section, message, isError = false, timing = null, dataInfo = null) {
+            const resultsDiv = document.getElementById(`${section}-results`);
+            resultsDiv.style.display = 'block';
+            
+            const resultItem = document.createElement('div');
+            resultItem.className = `result-item ${isError ? 'error' : 'success'}`;
+            
+            let content = message;
+            if (timing !== null) {
+                content += ` <span class="timing">[${formatTime(timing)}]</span>`;
+            }
+            if (dataInfo) {
+                content += `<div class="data-info">${dataInfo}</div>`;
+            }
+            
+            resultItem.innerHTML = content;
+            resultsDiv.appendChild(resultItem);
+
+            // Store timing for summary
+            if (timing !== null && !isError) {
+                if (!testResults[section]) testResults[section] = [];
+                testResults[section].push(timing);
+                updateSummary();
+            }
+        }
+
+        // Clear results for a section
+        function clearResults(section) {
+            const resultsDiv = document.getElementById(`${section}-results`);
+            resultsDiv.innerHTML = '';
+            resultsDiv.style.display = 'none';
+            delete testResults[section];
+            updateSummary();
+        }
+
+        // Update summary statistics
+        function updateSummary() {
+            const summaryDiv = document.getElementById('summary');
+            const summaryContent = document.getElementById('summary-content');
+            
+            if (Object.keys(testResults).length === 0) {
+                summaryDiv.style.display = 'none';
+                return;
+            }
+
+            summaryDiv.style.display = 'block';
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<tr style="background-color: #f8f9fa;"><th style="padding: 8px; border: 1px solid #ddd;">Test</th><th style="padding: 8px; border: 1px solid #ddd;">Avg Time</th><th style="padding: 8px; border: 1px solid #ddd;">Min Time</th><th style="padding: 8px; border: 1px solid #ddd;">Max Time</th><th style="padding: 8px; border: 1px solid #ddd;">Tests Run</th></tr>';
+            
+            for (const [section, times] of Object.entries(testResults)) {
+                const avg = times.reduce((a, b) => a + b, 0) / times.length;
+                const min = Math.min(...times);
+                const max = Math.max(...times);
+                
+                html += `<tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${section.charAt(0).toUpperCase() + section.slice(1)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${formatTime(avg)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${formatTime(min)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${formatTime(max)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${times.length}</td>
+                </tr>`;
+            }
+            html += '</table>';
+            summaryContent.innerHTML = html;
+        }
+
+        // Test main data endpoint
+        async function testEndpoint(section) {
+            const startTime = performance.now();
+            
+            try {
+                addResult(section, '🔄 Fetching data from /api/data...', false, null);
+                
+                const response = await fetch(`${API_BASE}/api/data`);
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                let dataInfo = '';
+                if (data.status === 'success' && data.data) {
+                    const hierarchyCount = data.data.hierarchy ? data.data.hierarchy.length : 0;
+                    const investmentCount = data.data.investment ? data.data.investment.length : 0;
+                    dataInfo = `Hierarchy: ${hierarchyCount} records, Investment: ${investmentCount} records`;
+                }
+                
+                addResult(section, '✅ Successfully fetched /api/data', false, timing, dataInfo);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                addResult(section, `❌ Error fetching /api/data: ${error.message}`, true, timing);
+            }
+        }
+
+        // Test portfolio data processing
+        async function testPortfolioProcessing() {
+            const section = 'portfolio';
+            const startTime = performance.now();
+            
+            try {
+                addResult(section, '🔄 Processing portfolio data...', false, null);
+                
+                // Simulate the portfolio data processing logic
+                const response = await fetch(`${API_BASE}/api/data`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                
+                // Simulate portfolio processing
+                const hierarchyData = result.data.hierarchy;
+                const portfolioRecords = hierarchyData.filter(item => item.COE_ROADMAP_TYPE === 'Portfolio');
+                
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                
+                const dataInfo = `Processed ${portfolioRecords.length} portfolio records from ${hierarchyData.length} total hierarchy records`;
+                addResult(section, '✅ Portfolio data processing completed', false, timing, dataInfo);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                addResult(section, `❌ Portfolio processing error: ${error.message}`, true, timing);
+            }
+        }
+
+        // Test program data processing
+        async function testProgramProcessing() {
+            const section = 'program';
+            const startTime = performance.now();
+            
+            try {
+                addResult(section, '🔄 Processing program data...', false, null);
+                
+                const response = await fetch(`${API_BASE}/api/data`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                
+                // Simulate program processing
+                const hierarchyData = result.data.hierarchy;
+                const programRecords = hierarchyData.filter(item => item.COE_ROADMAP_TYPE === 'Program');
+                
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                
+                const dataInfo = `Processed ${programRecords.length} program records from ${hierarchyData.length} total hierarchy records`;
+                addResult(section, '✅ Program data processing completed', false, timing, dataInfo);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                addResult(section, `❌ Program processing error: ${error.message}`, true, timing);
+            }
+        }
+
+        // Test sub-program data processing
+        async function testSubProgramProcessing() {
+            const section = 'subprogram';
+            const startTime = performance.now();
+            
+            try {
+                addResult(section, '🔄 Processing sub-program data...', false, null);
+                
+                const response = await fetch(`${API_BASE}/api/data`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                
+                // Simulate sub-program processing
+                const hierarchyData = result.data.hierarchy;
+                const subProgramRecords = hierarchyData.filter(item => item.COE_ROADMAP_TYPE === 'Sub-Program');
+                
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                
+                const dataInfo = `Processed ${subProgramRecords.length} sub-program records from ${hierarchyData.length} total hierarchy records`;
+                addResult(section, '✅ Sub-program data processing completed', false, timing, dataInfo);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                addResult(section, `❌ Sub-program processing error: ${error.message}`, true, timing);
+            }
+        }
+
+        // Test region data processing
+        async function testRegionProcessing() {
+            const section = 'region';
+            const startTime = performance.now();
+            
+            try {
+                addResult(section, '🔄 Processing region data...', false, null);
+                
+                const response = await fetch(`${API_BASE}/api/data`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                
+                // Simulate region processing
+                const hierarchyData = result.data.hierarchy;
+                const investmentData = result.data.investment;
+                
+                // Simple region processing simulation
+                const regionProjects = investmentData.filter(item => 
+                    item.region && item.market && item.function
+                );
+                
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                
+                const dataInfo = `Processed ${regionProjects.length} region projects from ${investmentData.length} total investment records`;
+                addResult(section, '✅ Region data processing completed', false, timing, dataInfo);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const timing = endTime - startTime;
+                addResult(section, `❌ Region processing error: ${error.message}`, true, timing);
+            }
+        }
+
+        // Test cache performance
+        async function testCachePerformance() {
+            const section = 'cache';
+            
+            try {
+                addResult(section, '🔄 Testing cache performance...', false, null);
+                
+                // First request (likely cache miss)
+                const start1 = performance.now();
+                const response1 = await fetch(`${API_BASE}/api/data`);
+                const end1 = performance.now();
+                const time1 = end1 - start1;
+                
+                if (!response1.ok) throw new Error(`HTTP ${response1.status}`);
+                addResult(section, '✅ First request (cache miss)', false, time1);
+                
+                // Small delay
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Second request (likely cache hit)
+                const start2 = performance.now();
+                const response2 = await fetch(`${API_BASE}/api/data`);
+                const end2 = performance.now();
+                const time2 = end2 - start2;
+                
+                if (!response2.ok) throw new Error(`HTTP ${response2.status}`);
+                addResult(section, '✅ Second request (cache hit)', false, time2);
+                
+                const improvement = ((time1 - time2) / time1 * 100).toFixed(1);
+                addResult(section, `📊 Cache performance improvement: ${improvement}%`, false, null);
+                
+            } catch (error) {
+                addResult(section, `❌ Cache test error: ${error.message}`, true);
+            }
+        }
+
+        // Clear cache
+        async function clearCache() {
+            try {
+                const response = await fetch(`${API_BASE}/api/cache/clear`, { method: 'POST' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                addResult('cache', '🗑️ Cache cleared successfully', false, null);
+                
+            } catch (error) {
+                addResult('cache', `❌ Cache clear error: ${error.message}`, true);
+            }
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            const runAllBtn = document.getElementById('runAllBtn');
+            runAllBtn.disabled = true;
+            runAllBtn.textContent = '🔄 Running All Tests...';
+            
+            try {
+                // Clear all previous results
+                ['main', 'portfolio', 'program', 'subprogram', 'region', 'cache'].forEach(clearResults);
+                
+                // Run tests sequentially
+                await testEndpoint('main');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                await testPortfolioProcessing();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                await testProgramProcessing();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                await testSubProgramProcessing();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                await testRegionProcessing();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                await testCachePerformance();
+                
+                // Add completion message
+                const summaryDiv = document.getElementById('summary');
+                if (summaryDiv.style.display !== 'none') {
+                    const completionMsg = document.createElement('div');
+                    completionMsg.style.marginTop = '15px';
+                    completionMsg.style.padding = '10px';
+                    completionMsg.style.backgroundColor = '#d4edda';
+                    completionMsg.style.border = '1px solid #c3e6cb';
+                    completionMsg.style.borderRadius = '4px';
+                    completionMsg.style.color = '#155724';
+                    completionMsg.innerHTML = '🎉 All performance tests completed successfully!';
+                    summaryDiv.appendChild(completionMsg);
+                }
+                
+            } finally {
+                runAllBtn.disabled = false;
+                runAllBtn.textContent = '🏃‍♂️ Run All Tests';
+            }
+        }
+
+        // Initial page load message
+        window.addEventListener('load', () => {
+            console.log('🚀 PMO Portfolio API Performance Test loaded');
+            console.log('📍 Backend should be running on:', API_BASE);
+        });
+    </script>
+</body>
+</html>

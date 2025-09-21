@@ -1,0 +1,227 @@
+/* Responsive Gantt Chart Styles */
+
+/* CSS Custom Properties for Dynamic Sizing */
+:root {
+  --gantt-month-width: 100px;
+  --gantt-label-width: 200px;
+  --gantt-bar-height: 24px;
+  --gantt-touch-target: 24px;
+  --gantt-font-size: 14px;
+  --gantt-visible-months: 13;
+}
+
+/* Mobile Breakpoint (< 768px) */
+@media (max-width: 767px) {
+  :root {
+    --gantt-month-width: max(60px, 8vw);
+    --gantt-label-width: min(150px, 30vw);
+    --gantt-bar-height: 32px;
+    --gantt-touch-target: 44px;
+    --gantt-font-size: 12px;
+    --gantt-visible-months: 6;
+  }
+
+  /* Mobile-specific styles */
+  .gantt-container {
+    padding: 0.5rem;
+  }
+
+  .gantt-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .gantt-select {
+    width: 100%;
+    min-height: var(--gantt-touch-target);
+  }
+
+  .gantt-timeline-axis {
+    font-size: var(--gantt-font-size);
+  }
+
+  .gantt-milestone-marker {
+    min-width: var(--gantt-touch-target);
+    min-height: var(--gantt-touch-target);
+  }
+
+  .gantt-project-label {
+    font-size: var(--gantt-font-size);
+    padding: 0.75rem 0.5rem;
+  }
+
+  /* Improve touch scrolling */
+  .gantt-scroll-area {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Hide less important elements on mobile */
+  .gantt-secondary-info {
+    display: none;
+  }
+}
+
+/* Tablet Breakpoint (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --gantt-month-width: 80px;
+    --gantt-label-width: 180px;
+    --gantt-bar-height: 28px;
+    --gantt-touch-target: 32px;
+    --gantt-font-size: 13px;
+    --gantt-visible-months: 9;
+  }
+
+  .gantt-container {
+    padding: 1rem;
+  }
+
+  .gantt-header {
+    flex-direction: row;
+    gap: 1rem;
+  }
+}
+
+/* Desktop Breakpoint (>= 1024px) */
+@media (min-width: 1024px) {
+  :root {
+    --gantt-month-width: 100px;
+    --gantt-label-width: 200px;
+    --gantt-bar-height: 24px;
+    --gantt-touch-target: 24px;
+    --gantt-font-size: 14px;
+    --gantt-visible-months: 13;
+  }
+
+  .gantt-container {
+    padding: 1.5rem;
+  }
+}
+
+/* Large Desktop Breakpoint (>= 1440px) */
+@media (min-width: 1440px) {
+  :root {
+    --gantt-month-width: 120px;
+    --gantt-label-width: 250px;
+    --gantt-visible-months: 15;
+  }
+}
+
+/* Utility Classes */
+.gantt-responsive-text {
+  font-size: var(--gantt-font-size);
+}
+
+.gantt-responsive-spacing {
+  padding: calc(var(--gantt-touch-target) / 4);
+}
+
+.gantt-touch-target {
+  min-width: var(--gantt-touch-target);
+  min-height: var(--gantt-touch-target);
+}
+
+/* Scrollbar Styling for Better UX */
+.gantt-scroll-area::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.gantt-scroll-area::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.gantt-scroll-area::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.gantt-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* High DPI Display Support */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .gantt-milestone-marker {
+    transform: translateZ(0); /* Enable hardware acceleration */
+  }
+}
+
+/* Landscape Orientation on Mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  :root {
+    --gantt-visible-months: 8;
+    --gantt-month-width: max(70px, 10vw);
+  }
+}
+
+/* Print Styles */
+@media print {
+  .gantt-container {
+    overflow: visible !important;
+  }
+  
+  .gantt-scroll-area {
+    overflow: visible !important;
+  }
+  
+  .gantt-timeline-axis,
+  .gantt-chart-content {
+    width: 100% !important;
+  }
+}
+
+/* Focus and Accessibility */
+.gantt-interactive:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.gantt-interactive:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .gantt-scroll-area {
+    scroll-behavior: auto;
+  }
+  
+  .gantt-transition {
+    transition: none !important;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .gantt-container {
+    background-color: #1f2937;
+    color: #f9fafb;
+  }
+  
+  .gantt-timeline-axis {
+    background-color: #374151;
+    border-color: #4b5563;
+  }
+  
+  .gantt-project-label {
+    background-color: #374151;
+    border-color: #4b5563;
+  }
+}
+
+/* Container Queries Support (Future-proofing) */
+@supports (container-type: inline-size) {
+  .gantt-container {
+    container-type: inline-size;
+  }
+  
+  @container (max-width: 600px) {
+    .gantt-month-label {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+  }
+}
