@@ -846,15 +846,13 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                     className="flex-1 overflow-y-auto overflow-x-hidden"
                     onScroll={handleGanttScroll}
                 >
-                    <div className="relative w-full h-full">
+                    <div className="relative w-full" style={{ height: getTotalHeight() }}>
                         <svg
-                            width="100%"
-                            height="100%"
-                            viewBox={`0 0 ${Math.max(800, window.innerWidth - responsiveConstants.LABEL_WIDTH)} ${Math.max(400, getTotalHeight())}`}
-                            preserveAspectRatio="none"
+                            width={Math.max(800, window.innerWidth - responsiveConstants.LABEL_WIDTH)}
+                            height={getTotalHeight()}
                             style={{
-                                touchAction: 'pan-y', // Only allow vertical scrolling
-                                minHeight: Math.max(400, getTotalHeight())
+                                touchAction: 'pan-y',
+                                display: 'block'
                             }}
                             className="block"
                         >

@@ -474,10 +474,10 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     };
 
     const getTotalHeight = () => {
-        const displayData = getTimelineFilteredData();
+        const scaledData = getScaledFilteredData();
         const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
         const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Synchronized top margin
-        return displayData.reduce((total, project) => {
+        return scaledData.reduce((total, project) => {
             const barHeight = calculateBarHeight(project);
             return total + barHeight + ultraMinimalSpacing;
         }, topMargin);
@@ -655,8 +655,8 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     onScroll={handleLeftPanelScroll}
                 >
                     <div style={{ position: 'relative', height: getTotalHeight() }}>
-                        {getTimelineFilteredData().map((project, index) => {
-                            const displayData = getTimelineFilteredData();
+                        {getScaledFilteredData().map((project, index) => {
+                            const displayData = getScaledFilteredData();
                             console.log('🎨 Rendering project:', index, project.name, project);
                             
                             const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
@@ -722,15 +722,13 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     className="flex-1 overflow-y-auto overflow-x-hidden"
                     onScroll={handleGanttScroll}
                 >
-                    <div className="relative w-full h-full">
+                    <div className="relative w-full" style={{ height: getTotalHeight() }}>
                         <svg
-                            width="100%"
-                            height="100%"
-                            viewBox={`0 0 ${Math.max(800, window.innerWidth - responsiveConstants.LABEL_WIDTH)} ${Math.max(400, getTotalHeight())}`}
-                            preserveAspectRatio="none"
+                            width={Math.max(800, window.innerWidth - responsiveConstants.LABEL_WIDTH)}
+                            height={getTotalHeight()}
                             style={{
-                                touchAction: 'pan-y', // Only allow vertical scrolling
-                                minHeight: Math.max(400, getTotalHeight())
+                                touchAction: 'pan-y',
+                                display: 'block'
                             }}
                             className="block"
                         >
