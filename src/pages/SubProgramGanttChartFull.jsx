@@ -1113,7 +1113,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                         // Calculate total height using ultra-compact logic (like Program page)
                         const topMargin = Math.round(8 * zoomLevel); // Match Program page's topMargin
                         const ultraMinimalSpacing = Math.round(1 * zoomLevel); // Ultra-minimal spacing
-                        return validProjectRows.reduce((total, p, i) => {
+                        return validProjectRows.reduce((total, p) => {
                             const projectEndDate = p.hasPhases
                                 ? (p.phases && p.phases.length > 0 ? p.phases.reduce((latest, phase) => {
                                     if (!phase || !phase.TASK_FINISH) return latest;
@@ -1263,32 +1263,53 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                         }}
                         onScroll={handleScroll}
                     >
-                        <div style={{ width: `${timelineWidth}px` }}>
+                        <div style={{ width: `${timelineWidth}px`, height: (() => {
+                            const topMargin = Math.round(8 * zoomLevel);
+                            const ultraMinimalSpacing = Math.round(1 * zoomLevel);
+                            const bottomPadding = 50;
+                            return validProjectRows.reduce((total, p) => {
+                                const projectEndDate = p.hasPhases
+                                    ? (p.phases && p.phases.length > 0 ? p.phases.reduce((latest, phase) => {
+                                        if (!phase || !phase.TASK_FINISH) return latest;
+                                        const phaseEndDate = parseDate(phase.TASK_FINISH);
+                                        return (phaseEndDate && (!latest || phaseEndDate > latest)) ? phaseEndDate : latest;
+                                    }, null) : null)
+                                    : parseDate(p.singleProjectPhase?.TASK_FINISH);
+                                const processedMilestones = processMilestonesForProject(
+                                    p.project.milestones || [],
+                                    startDate,
+                                    constants.MONTH_WIDTH,
+                                    projectEndDate
+                                );
+                                return total + calculateBarHeight(p, processedMilestones) + ultraMinimalSpacing;
+                            }, topMargin) + bottomPadding;
+                        })() }}>
                             <svg 
                                 key={`gantt-${selectedProgram}-${dataVersion}`} // Add key to force re-render
-                                width={timelineWidth} 
-                                height={validProjectRows.reduce((total, row) => {
-                                    // Safety check for row
-                                    if (!row || !row.project) return total;
-                                    
-                                    // Process milestones for accurate height calculation with safety checks
-                                    const projectEndDate = row.hasPhases
-                                        ? (row.phases && row.phases.length > 0 ? row.phases.reduce((latest, phase) => {
-                                            if (!phase || !phase.TASK_FINISH) return latest;
-                                            const phaseEndDate = parseDate(phase.TASK_FINISH);
-                                            return (phaseEndDate && (!latest || phaseEndDate > latest)) ? phaseEndDate : latest;
-                                        }, null) : null)
-                                        : parseDate(row.singleProjectPhase?.TASK_FINISH); // For projects without phases
-                                    
-                                    const processedMilestones = processMilestonesForProject(
-                                        row.project.milestones || [], // Fix: Use milestones from project object
-                                        startDate,
-                                        constants.MONTH_WIDTH,
-                                        projectEndDate
-                                    );
-                                    
-                                    return total + calculateBarHeight(row, processedMilestones) + constants.ROW_PADDING;
-                                }, 0)}
+                                width={timelineWidth}
+                                height={(() => {
+                                    const topMargin = Math.round(8 * zoomLevel);
+                                    const ultraMinimalSpacing = Math.round(1 * zoomLevel);
+                                    const bottomPadding = 50;
+                                    return validProjectRows.reduce((total, p) => {
+                                        const projectEndDate = p.hasPhases
+                                            ? (p.phases && p.phases.length > 0 ? p.phases.reduce((latest, phase) => {
+                                                if (!phase || !phase.TASK_FINISH) return latest;
+                                                const phaseEndDate = parseDate(phase.TASK_FINISH);
+                                                return (phaseEndDate && (!latest || phaseEndDate > latest)) ? phaseEndDate : latest;
+                                            }, null) : null)
+                                            : parseDate(p.singleProjectPhase?.TASK_FINISH); // For projects without phases
+                                        
+                                        const processedMilestones = processMilestonesForProject(
+                                            p.project.milestones || [], // Fix: Use milestones from project object
+                                            startDate,
+                                            constants.MONTH_WIDTH,
+                                            projectEndDate
+                                        );
+                                        
+                                        return total + calculateBarHeight(p, processedMilestones) + ultraMinimalSpacing;
+                                    }, topMargin) + bottomPadding;
+                                })()}
                             >
                                 {validProjectRows.map((row, index) => {
                                     // Safety check for undefined rows

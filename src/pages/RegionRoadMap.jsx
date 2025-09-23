@@ -746,6 +746,18 @@ const RegionRoadMap = () => {
         return Math.max(minimumHeight, contentDrivenHeight);
     };
 
+    // Unified total height for left panel and right chart to avoid scaling/misalignment
+    const getTotalHeight = () => {
+        const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0));
+        const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0));
+        return getScaledFilteredData().reduce((total, project) => {
+            const projectStartDate = parseDate(project.startDate, `${project.name} - Project Start`);
+            const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
+            const projectRowHeight = calculateRowHeight(project.name, project.milestones, projectStartDate, projectEndDate, startDate, endDate);
+            return total + projectRowHeight + ultraMinimalSpacing;
+        }, topMargin);
+    };
+
     return (
         <div className="w-full h-screen flex flex-col overflow-hidden">
             {/* Status Badge - Top Right (matches ProgramGanttChart) */}
@@ -1081,12 +1093,7 @@ const RegionRoadMap = () => {
                                     }}
                                     onScroll={handleLeftPanelScroll}
                                 >
-                                    <div style={{ position: 'relative', height: getScaledFilteredData().reduce((total, project) => {
-                                        const projectStartDate = parseDate(project.startDate, `${project.name} - Project Start`);
-                                        const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
-                                        const projectRowHeight = calculateRowHeight(project.name, project.milestones, projectStartDate, projectEndDate, startDate, endDate);
-                                        return total + projectRowHeight + Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                                    }, Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0))) }}>
+                                    <div style={{ position: 'relative', height: getTotalHeight() }}>
                                         {getScaledFilteredData().map((project, index) => {
                                             const projectStartDate = parseDate(project.startDate, `${project.name} - Project Start`);
                                             const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
@@ -1159,21 +1166,10 @@ const RegionRoadMap = () => {
                                     }}
                                     onScroll={handleGanttScroll}
                                 >
-                                    <div className="relative" style={{ width: totalWidth }}>
+                                    <div className="relative" style={{ width: totalWidth, height: getTotalHeight() }}>
                                         <svg
                                             width={totalWidth}
-                                            height={getScaledFilteredData().reduce((total, project) => {
-                                                const projectStartDate = parseDate(project.startDate, `${project.name} - Project Start`);
-                                                const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
-                                                const projectRowHeight = calculateRowHeight(project.name, project.milestones, projectStartDate, projectEndDate, startDate, endDate);
-                                                return total + projectRowHeight + Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                                            }, Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)))}
-                                            style={{ height: getScaledFilteredData().reduce((total, project) => {
-                                                const projectStartDate = parseDate(project.startDate, `${project.name} - Project Start`);
-                                                const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
-                                                const projectRowHeight = calculateRowHeight(project.name, project.milestones, projectStartDate, projectEndDate, startDate, endDate);
-                                                return total + projectRowHeight + Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                                            }, Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0))) }}
+                                            height={getTotalHeight()}
                                         >
                                             {/* iv. Simple line-based swimlanes for RegionGanttChart */}
                                             {/* Vertical month separator lines - responsive to zoom */}
@@ -1183,12 +1179,7 @@ const RegionRoadMap = () => {
                                                     x1={i * responsiveConstants.MONTH_WIDTH}
                                                     y1="0"
                                                     x2={i * responsiveConstants.MONTH_WIDTH}
-                                                    y2={getScaledFilteredData().reduce((total, project) => {
-                                                        const projectStartDate = parseDate(project.startDate, `${project.name} - Project Start`);
-                                                        const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
-                                                        const projectRowHeight = calculateRowHeight(project.name, project.milestones, projectStartDate, projectEndDate, startDate, endDate);
-                                                        return total + projectRowHeight + Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                                                    }, Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)))}
+                                                    y2={getTotalHeight()}
                                                     stroke="rgba(0,0,0,0.1)"
                                                     strokeWidth="1"
                                                 />
