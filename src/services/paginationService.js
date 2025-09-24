@@ -1,15 +1,15 @@
 /**
  * Unified Pagination Service
- * Handles pagination logic across all views with consistent 25 items per page
+ * Handles pagination logic across all views with consistent 13 items per page
  */
 
-export const ITEMS_PER_PAGE = 25;
+export const ITEMS_PER_PAGE = 13;
 
 /**
  * Calculate pagination metadata
  * @param {number} totalItems - Total number of items
  * @param {number} currentPage - Current page number (1-based)
- * @param {number} itemsPerPage - Items per page (default: 25)
+ * @param {number} itemsPerPage - Items per page (default: 13)
  * @returns {object} Pagination metadata
  */
 export const getPaginationInfo = (totalItems, currentPage = 1, itemsPerPage = ITEMS_PER_PAGE) => {
@@ -33,7 +33,7 @@ export const getPaginationInfo = (totalItems, currentPage = 1, itemsPerPage = IT
  * Get paginated slice of data
  * @param {Array} data - Full data array
  * @param {number} currentPage - Current page number (1-based)
- * @param {number} itemsPerPage - Items per page (default: 25)
+ * @param {number} itemsPerPage - Items per page (default: 13)
  * @returns {Array} Paginated data slice
  */
 export const getPaginatedData = (data, currentPage = 1, itemsPerPage = ITEMS_PER_PAGE) => {

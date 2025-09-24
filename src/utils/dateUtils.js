@@ -566,3 +566,75 @@ export const truncateTextToWidth = (text, maxWidth, fontSize = '14px') => {
     const result = text.substring(0, effectiveMaxChars) + '…';
     return result;
 };
+
+/**
+ * Smart milestone label stretching algorithm
+ * Extends milestone labels as far as possible within available space
+ * Only truncates when overlap would occur
+ * @param {Array} milestones - Milestones to process
+ * @param {number} monthWidth - Width per month in pixels
+ * @param {Date} timelineStartDate - Start of timeline
+ * @param {Date} timelineEndDate - End of timeline
+ * @returns {Array} Processed milestones with smart labels
+ */
+export const createSmartMilestoneLabels = (milestones, monthWidth, timelineStartDate, timelineEndDate, fontSize = '14px') => {
+    if (!milestones?.length) return [];
+
+    // Sort milestones by date to process in order
+    const sortedMilestones = [...milestones].sort((a, b) => {
+        const dateA = parseDate(a.date);
+        const dateB = parseDate(b.date);
+        return dateA - dateB;
+    });
+
+    // Calculate positions for all milestones
+    const milestonesWithPositions = sortedMilestones.map(milestone => {
+        const milestoneDate = parseDate(milestone.date);
+        const x = calculateMilestonePosition(milestoneDate, timelineStartDate, monthWidth);
+        return {
+            ...milestone,
+            x,
+            date: milestoneDate,
+            originalLabel: milestone.label || milestone.title || milestone.name || 'Milestone'
+        };
+    });
+
+    // For each milestone, determine the maximum stretch window
+    const processedMilestones = milestonesWithPositions.map((currentMilestone, index) => {
+        // Find the stretch boundaries
+        const leftBoundary = index > 0 ? milestonesWithPositions[index - 1].x : 0;
+        const rightBoundary = index < milestonesWithPositions.length - 1
+            ? milestonesWithPositions[index + 1].x
+            : calculateMilestonePosition(timelineEndDate, timelineStartDate, monthWidth);
+
+        // Calculate available stretch window (leave some margin for readability)
+        const margin = 10; // 10px margin between adjacent milestone labels
+        const availableLeftSpace = currentMilestone.x - leftBoundary - margin;
+        const availableRightSpace = rightBoundary - currentMilestone.x - margin;
+
+        // Total available width for the label (can extend in both directions from milestone marker)
+        const maxLabelWidth = availableLeftSpace + availableRightSpace;
+
+        // Try to fit the full label
+        const fullLabelWidth = calculateTextWidth(currentMilestone.originalLabel, fontSize);
+
+        let finalLabel;
+        if (fullLabelWidth <= maxLabelWidth) {
+            // Label fits fully - no truncation needed
+            finalLabel = currentMilestone.originalLabel;
+        } else {
+            // Label needs truncation - use smart truncation
+            finalLabel = truncateTextToWidth(currentMilestone.originalLabel, maxLabelWidth, fontSize);
+        }
+
+        return {
+            ...currentMilestone,
+            label: finalLabel,
+            stretchWidth: maxLabelWidth,
+            usedFullLabel: fullLabelWidth <= maxLabelWidth
+        };
+    });
+
+    return processedMilestones;
+};
+

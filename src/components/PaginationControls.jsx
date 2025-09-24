@@ -5,12 +5,13 @@ import React from 'react';
  * Provides numbered page buttons with 25 items per page
  * Replaces the old "Load More" button approach
  */
-const PaginationControls = ({ 
-    currentPage, 
-    totalItems, 
-    itemsPerPage = 25, 
+const PaginationControls = ({
+    currentPage,
+    totalItems,
+    itemsPerPage = 13,
     onPageChange,
-    className = "" 
+    className = "",
+    compact = false
 }) => {
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     
@@ -49,7 +50,7 @@ const PaginationControls = ({
     const visiblePages = getVisiblePages();
     
     return (
-        <div className={`flex flex-wrap items-center justify-center gap-2 py-4 ${className}`}>
+        <div className={`flex items-center justify-center gap-2 py-4 ${className}`}>
             {/* Previous button */}
             <button
                 onClick={() => onPageChange(currentPage - 1)}
@@ -90,10 +91,12 @@ const PaginationControls = ({
                 Next
             </button>
             
-            {/* Page info - responsive, can wrap to new line */}
-            <div className="w-full sm:w-auto mt-2 sm:mt-0 sm:ml-4 text-sm text-gray-700 text-center sm:text-left">
-                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} items
-            </div>
+            {/* Page info - hide in compact mode */}
+            {!compact && (
+                <div className="ml-4 text-sm text-gray-700 whitespace-nowrap">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} items
+                </div>
+            )}
         </div>
     );
 };

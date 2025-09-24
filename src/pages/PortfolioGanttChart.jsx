@@ -3,7 +3,7 @@ import TimelineViewDropdown from '../components/TimelineViewDropdown';
 import TimelineAxis from '../components/TimelineAxis';
 import MilestoneMarker from '../components/MilestoneMarker';
 import PaginationControls from '../components/PaginationControls';
-import { getTimelineRange, getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calculatePosition, calculateMilestonePosition, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels, truncateLabel } from '../utils/dateUtils';
+import { getTimelineRange, getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calculatePosition, calculateMilestonePosition, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels, truncateLabel, createSmartMilestoneLabels } from '../utils/dateUtils';
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 import { differenceInDays } from 'date-fns';
@@ -44,54 +44,80 @@ const statusColors = {
 // Use centralized truncateLabel function from dateUtils.js
 
 // Updated: Now processes only SG3 milestones (filtered in dataService.js)
-const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, projectEndDate = null) => {
+const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth = 100, projectEndDate = null, projectIndex = 0, timelineEndDate = null) => {
     if (!milestones?.length) return [];
 
-    // Display3: Group milestones by month
-    const monthlyGroups = groupMilestonesByMonth(milestones);
-    const maxInitialWidth = monthWidth * 8; // Allow intelligent calculation up to 8 months
+    // CRITICAL FIX: Filter milestones to only include those within the timeline viewport
+    const timelineFilteredMilestones = milestones.filter(milestone => {
+        const milestoneDate = parseDate(milestone.date);
+        if (!milestoneDate) return false;
 
+        // Only include milestones that fall within the timeline range
+        const isWithinTimeline = milestoneDate >= timelineStartDate && milestoneDate <= timelineEndDate;
+
+        if (!isWithinTimeline) {
+            console.log('🚫 Excluding milestone outside timeline:', milestone.label, milestoneDate.toISOString());
+        }
+
+        return isWithinTimeline;
+    });
+
+    console.log(`🎯 Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
+
+    // 🚀 NEW: Use smart milestone label stretching algorithm
+    const smartMilestones = createSmartMilestoneLabels(
+        timelineFilteredMilestones,
+        monthWidth,
+        timelineStartDate,
+        timelineEndDate,
+        '14px'
+    );
+
+    console.log(`🎨 Smart stretching results:`, smartMilestones.map(m => ({
+        label: m.originalLabel,
+        smartLabel: m.label,
+        usedFullLabel: m.usedFullLabel,
+        stretchWidth: m.stretchWidth
+    })));
+
+    // Process smart milestones and group by month for positioning logic
+    const monthlyGroups = groupMilestonesByMonth(smartMilestones);
     const processedMilestones = [];
 
-    // Process each monthly group
+    // Process each monthly group with smart labels
     Object.entries(monthlyGroups).forEach(([monthKey, monthMilestones]) => {
-        // Determine label position for this month (odd = above, even = below)
-        const labelPosition = getMonthlyLabelPosition(monthKey);
+        // ENHANCED: Determine label position to prevent overlap between adjacent rows
+        const basePosition = getMonthlyLabelPosition(monthKey);
 
-        // STRICT RULES: Only vertical stacking allowed, no horizontal layout
-        // RULE 1: One milestone label per month with alternating positions
-        // RULE 2: Multiple milestones stacked vertically with intelligent width calculation
-        
-        const verticalLabels = createVerticalMilestoneLabels(monthMilestones, maxInitialWidth, '14px', milestones, monthWidth);
-        const horizontalLabel = ''; // Disabled to enforce strict vertical stacking
-
+        // For better overlap prevention, use a combination of month and project index
+        const shouldFlip = (projectIndex % 2 === 1) || (projectIndex % 4 === 2);
+        const labelPosition = shouldFlip ? (basePosition === 'above' ? 'below' : 'above') : basePosition;
 
         // Process each milestone in the month
         monthMilestones.forEach((milestone, index) => {
-            const milestoneDate = parseDate(milestone.date);
-            const x = calculateMilestonePosition(milestoneDate, startDate, monthWidth, projectEndDate);
-
             // STRICT RULE FIX: Only the first milestone in each month shows the labels AND the shape
-            // This prevents duplicate label rendering AND duplicate shapes for multiple milestones in same month
             const isFirstInMonth = index === 0;
 
             processedMilestones.push({
                 ...milestone,
-                x,
-                date: milestoneDate,
                 isGrouped: monthMilestones.length > 1,
-                isMonthlyGrouped: true, // New flag for Display3
+                isMonthlyGrouped: true,
                 monthKey,
                 labelPosition,
-                horizontalLabel: isFirstInMonth ? horizontalLabel : '', // Only first milestone shows horizontal label
-                verticalLabels: isFirstInMonth ? verticalLabels : [], // Only first milestone shows vertical labels
-                showLabel: true, // Display3: Always show labels
+                // Use the smart-stretched label
+                label: milestone.label, // This is already the smart label from createSmartMilestoneLabels
+                horizontalLabel: '', // Disabled to enforce strict vertical stacking
+                verticalLabels: isFirstInMonth ? [milestone.label] : [], // Use smart label in vertical stack
+                showLabel: true,
                 shouldWrapText: false,
-                hasAdjacentMilestones: false, // Not used in Display3
-                fullLabel: milestone.label, // Keep original label for tooltips
-                shouldRenderShape: isFirstInMonth, // NEW: Only render shape for first milestone in month
-                allMilestonesInProject: milestones, // Pass all milestones for ±4 months check
-                currentMilestoneDate: milestoneDate // Pass current date for proximity check
+                hasAdjacentMilestones: false,
+                fullLabel: milestone.originalLabel, // Keep original for tooltips
+                shouldRenderShape: isFirstInMonth,
+                allMilestonesInProject: milestones,
+                currentMilestoneDate: milestone.date,
+                // NEW: Add smart stretching metadata
+                stretchWidth: milestone.stretchWidth,
+                usedFullLabel: milestone.usedFullLabel
             });
         });
     });
@@ -141,15 +167,21 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         viewportWidth: window.innerWidth
     });
 
-    // Handle window resize
+    // Handle window resize - recalculate both responsive constants and force re-render for dynamic spacing
     useEffect(() => {
         const handleResize = () => {
             setResponsiveConstants(getResponsiveConstants());
+            // Force a re-render to recalculate dynamic spacing based on new viewport height
+            // This is necessary because getDynamicSpacingInfo() uses window.innerHeight
+            setTimeout(() => {
+                // Small delay to ensure DOM has updated with new dimensions
+                setCurrentPage(prev => prev); // Trigger re-render without changing page
+            }, 10);
         };
 
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    }, []); // Remove currentPage from dependency array to fix circular reference
 
     // Timeline view change handler
     const handleTimelineViewChange = (newView) => {
@@ -159,7 +191,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
     const [allData, setAllData] = useState([]); // Store all loaded data
     
     // Use cached data instead of making API calls
@@ -167,7 +198,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         if (portfolioData && portfolioData.data) {
             console.log('✅ Using cached portfolio data:', portfolioData);
             setAllData(portfolioData.data);
-            setTotalItems(portfolioData.data.length);
             setCurrentPage(1);
             setLoading(false);
             setError(null);
@@ -176,11 +206,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
             setLoading(false);
         }
     }, [portfolioData, cacheLoading]);
-
-    // Handle page changes
-    const onPageChange = (newPage) => {
-        handlePageChange(newPage, Math.ceil(totalItems / ITEMS_PER_PAGE), setCurrentPage);
-    };
 
     // Scroll synchronization handlers - UPDATED for fixed-width layout
     // NOTE: Horizontal scrolling disabled - only vertical scroll sync needed
@@ -192,14 +217,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         }
     };
 
-    // UPDATED: No horizontal scroll restoration needed in fixed-width layout
-    useEffect(() => {
-        if (!loading) {
-            console.log('📊 Data loaded, fixed-width layout ready');
-            // No scroll restoration needed since we don't have horizontal scrolling
-        }
-    }, [allData, loading]); // Runs when data changes and loading stops
-
     const handleLeftPanelScroll = (e) => {
         const scrollTop = e.target.scrollTop;
         // Synchronize vertical scroll with gantt chart
@@ -207,6 +224,14 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
             ganttScrollRef.current.scrollTop = scrollTop;
         }
     };
+
+    // UPDATED: No horizontal scroll restoration needed in fixed-width layout
+    useEffect(() => {
+        if (!loading) {
+            console.log('📊 Data loaded, fixed-width layout ready');
+            // No scroll restoration needed since we don't have horizontal scrolling
+        }
+    }, [allData, loading]); // Runs when data changes and loading stops
 
     // Create a mapping of portfolio IDs to their names from the data
     const portfolioIdToNameMap = new Map();
@@ -230,13 +255,23 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     }));
 
     // Calculate filtered data based on selection
-    const filteredData = selectedParent === 'All' 
-        ? dataWithParentNames 
+    const filteredData = selectedParent === 'All'
+        ? dataWithParentNames
         : dataWithParentNames.filter(item => item.parentName === selectedParent);
 
-    // Get paginated data
-    const paginatedData = getPaginatedData(filteredData, currentPage, ITEMS_PER_PAGE);
-    
+    // Apply timeline filtering BEFORE pagination (like Program page)
+    const timelineFilteredData = filteredData.filter(project =>
+        isProjectInTimelineViewport(project, startDate, endDate)
+    );
+
+    // Get paginated data from timeline-filtered data
+    const paginatedData = getPaginatedData(timelineFilteredData, currentPage, ITEMS_PER_PAGE);
+
+    // Handle page changes
+    const onPageChange = (newPage) => {
+        handlePageChange(newPage, Math.ceil(timelineFilteredData.length / ITEMS_PER_PAGE), setCurrentPage);
+    };
+
     // Extract unique parent names for dropdown
     const parentNames = ['All', ...Array.from(new Set(dataWithParentNames.map(item => item.parentName).filter(name => name && name !== 'Root')))];
     
@@ -255,49 +290,30 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         setCurrentPage(1); // Reset to first page when filter changes
     };
 
-    // Apply timeline filtering to paginated data
-    const getTimelineFilteredData = () => {
-        // Filter paginated data by timeline viewport
-        const timelineFiltered = paginatedData.filter(project => 
-            isProjectInTimelineViewport(project, startDate, endDate)
-        );
-        
-        console.log('🎯 getTimelineFilteredData called:', {
-            paginatedLength: paginatedData.length,
-            timelineFilteredLength: timelineFiltered.length,
-            timelineView: timelineView,
-            currentPage: currentPage,
-            sampleItem: timelineFiltered[0]
-        });
-        
-        return timelineFiltered;
-    };
-
-    // Apply project scaling based on zoom level
+    // Apply project scaling based on zoom level (timeline filtering already applied)
     const getScaledFilteredData = () => {
-        const timelineData = getTimelineFilteredData();
         const projectScale = responsiveConstants.PROJECT_SCALE || 1.0;
-        
+
         if (projectScale >= 1.0) {
-            return timelineData;
+            return paginatedData;
         } else {
-            const targetCount = Math.max(1, Math.round(timelineData.length * projectScale));
-            return timelineData.slice(0, targetCount);
+            const targetCount = Math.max(1, Math.round(paginatedData.length * projectScale));
+            return paginatedData.slice(0, targetCount);
         }
     };
 
-    const calculateMilestoneLabelHeight = (milestones, monthWidth = dynamicMonthWidth) => {
+    const calculateMilestoneLabelHeight = (milestones, monthWidth = dynamicMonthWidth, projectIndex = 0) => {
         if (!milestones?.length) return { total: 0, above: 0, below: 0 };
 
         // Process milestones to get their positions and grouping info
-        const processedMilestones = processMilestonesWithPosition(milestones, startDate, monthWidth);
+        const processedMilestones = processMilestonesWithPosition(milestones, startDate, monthWidth, null, projectIndex, endDate);
 
         let maxAboveHeight = 0;
         let maxBelowHeight = 0;
         const LINE_HEIGHT = 12;
-        const COMPACT_LABEL_PADDING = 1; // Minimal padding for labels
-        const COMPACT_ABOVE_OFFSET = 1; // Minimal space above bar - very close to marker
-        const COMPACT_BELOW_OFFSET = 1; // Minimal space below bar - very close to marker
+        const MILESTONE_LABEL_PADDING = 2; // Reduced padding for more compact layout
+        const MILESTONE_ABOVE_OFFSET = 3; // Reduced to 70-80% of original (8px -> 3px)
+        const MILESTONE_BELOW_OFFSET = 3; // Reduced to 70-80% of original (8px -> 3px)
 
         let hasAnyLabels = false;
 
@@ -316,24 +332,24 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
 
                 if (labelHeight > 0) {
                     if (milestone.labelPosition === 'above') {
-                        maxAboveHeight = Math.max(maxAboveHeight, labelHeight + COMPACT_ABOVE_OFFSET);
+                        maxAboveHeight = Math.max(maxAboveHeight, labelHeight + MILESTONE_ABOVE_OFFSET);
                     } else {
-                        maxBelowHeight = Math.max(maxBelowHeight, labelHeight + COMPACT_BELOW_OFFSET);
+                        maxBelowHeight = Math.max(maxBelowHeight, labelHeight + MILESTONE_BELOW_OFFSET);
                     }
                 }
             } else if (milestone.isGrouped && milestone.groupLabels?.length > 0) {
                 const nonEmptyGroupLabels = milestone.groupLabels.filter(label => label && label.trim());
                 if (nonEmptyGroupLabels.length > 0) {
                     const groupHeight = nonEmptyGroupLabels.length * LINE_HEIGHT;
-                    maxBelowHeight = Math.max(maxBelowHeight, groupHeight + COMPACT_LABEL_PADDING);
+                    maxBelowHeight = Math.max(maxBelowHeight, groupHeight + MILESTONE_LABEL_PADDING);
                     hasAnyLabels = true;
                 }
             } else if (milestone.label && milestone.label.trim()) {
                 hasAnyLabels = true;
                 if (milestone.labelPosition === 'above') {
-                    maxAboveHeight = Math.max(maxAboveHeight, COMPACT_ABOVE_OFFSET);
+                    maxAboveHeight = Math.max(maxAboveHeight, MILESTONE_ABOVE_OFFSET);
                 } else {
-                    maxBelowHeight = Math.max(maxBelowHeight, COMPACT_BELOW_OFFSET);
+                    maxBelowHeight = Math.max(maxBelowHeight, MILESTONE_BELOW_OFFSET);
                 }
             }
         });
@@ -351,7 +367,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         const ganttBarHeight = 12; // Fixed height for the actual bar
         
         // STEP 2: Calculate milestone label space needed (detailed breakdown)
-        const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, dynamicMonthWidth);
+        const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, dynamicMonthWidth, 0);
         
         // STEP 3: Calculate project name space (minimal, just enough to display)
         const projectName = project.name || '';
@@ -377,15 +393,53 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         return Math.max(minimumHeight, contentDrivenHeight);
     };
 
-    const getTotalHeight = () => {
+    // Calculate dynamic spacing that utilizes available viewport height
+    const getDynamicSpacingInfo = () => {
         const scaledData = getScaledFilteredData();
-        const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-        const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Synchronized top margin
-        return scaledData.reduce((total, project) => {
-            const barHeight = calculateBarHeight(project);
-            return total + barHeight + ultraMinimalSpacing;
-        }, topMargin);
+        if (scaledData.length === 0) return { totalHeight: 400, spacing: 8 };
+
+        // Calculate available content height (viewport minus headers and pagination)
+        const viewportHeight = window.innerHeight;
+        const headerHeight = 120; // Approximate height for top header and timeline axis
+        const paginationHeight = 60; // Approximate height for pagination
+        const availableContentHeight = viewportHeight - headerHeight - paginationHeight;
+
+        // Calculate total content height needed (without spacing)
+        const totalContentHeight = scaledData.reduce((total, project) => {
+            return total + calculateBarHeight(project);
+        }, 0);
+
+        // Calculate how much space we have left for spacing
+        const topMargin = 12; // Reduced top margin for more compact layout
+        const bottomPadding = 16; // Reduced bottom padding for more compact layout
+        const usableSpacingArea = availableContentHeight - totalContentHeight - topMargin - bottomPadding;
+
+        // Distribute the remaining space as spacing between rows
+        const numberOfGaps = Math.max(1, scaledData.length + 1); // +1 for space before first item
+
+        // CRITICAL: Ensure minimum spacing to prevent milestone label overlap
+        // Calculate max milestone label extension that could overlap with adjacent rows
+        const LINE_HEIGHT = 12;
+        const MILESTONE_OFFSET = 3; // Reduced offset for compact layout
+        const maxMilestoneExtension = LINE_HEIGHT + MILESTONE_OFFSET; // Max label extension
+        const minRequiredSpacing = Math.max(6, maxMilestoneExtension * 0.6); // Compact but safe spacing
+
+        const calculatedSpacing = usableSpacingArea > 0 ? Math.floor(usableSpacingArea / numberOfGaps) : 0;
+        const dynamicSpacing = Math.max(minRequiredSpacing, calculatedSpacing); // Ensure minimum spacing for milestone clarity
+
+        const totalHeight = totalContentHeight + (dynamicSpacing * numberOfGaps) + topMargin + bottomPadding;
+
+        return {
+            totalHeight: Math.max(availableContentHeight, totalHeight),
+            spacing: dynamicSpacing,
+            topMargin
+        };
     };
+
+    const getTotalHeight = () => {
+        return getDynamicSpacingInfo().totalHeight;
+    };
+
 
     return (
         <div className="w-full h-screen flex flex-col overflow-hidden">
@@ -464,8 +518,8 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     {/* Center: Pagination */}
                     <div className="flex-1 flex justify-center min-w-0">
                         <PaginationControls
-                            currentPage={currentPage}  
-                            totalItems={filteredData.length}
+                            currentPage={currentPage}
+                            totalItems={timelineFilteredData.length}
                             itemsPerPage={ITEMS_PER_PAGE}
                             onPageChange={onPageChange}
                             compact={true}
@@ -544,13 +598,13 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     <div style={{ position: 'relative', height: getTotalHeight() }}>
                         {getScaledFilteredData().map((project, index) => {
                             const displayData = getScaledFilteredData();
+                            const spacingInfo = getDynamicSpacingInfo();
                             console.log('🎨 Rendering project:', index, project.name, project);
-                            
-                            const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                            const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Absolute minimum top margin
+
+                            // Use dynamic spacing for better visual separation
                             const yOffset = displayData
                                 .slice(0, index)
-                                .reduce((total, p) => total + calculateBarHeight(p) + ultraMinimalSpacing, topMargin);
+                                .reduce((total, p) => total + calculateBarHeight(p) + spacingInfo.spacing, spacingInfo.topMargin + spacingInfo.spacing);
                             
                             return (
                                 <div
@@ -621,28 +675,29 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                         >
                             {/* iii. Removed swimlanes from PortfolioGanttChart as requested */}
                             {getScaledFilteredData().map((project, index) => {
-                                // Calculate cumulative Y offset with minimal spacing to pack rows tightly
+                                // Calculate cumulative Y offset using dynamic spacing for optimal layout
                                 const scaledData = getScaledFilteredData();
+                                const spacingInfo = getDynamicSpacingInfo();
                                 console.log('📊 Rendering Gantt bar for:', index, project.name, {
                                     startDate: project.startDate,
                                     endDate: project.endDate,
-                                    milestones: project.milestones?.length || 0
+                                    milestones: project.milestones?.length || 0,
+                                    spacing: spacingInfo.spacing
                                 });
-                                
-                                const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                                const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Absolute minimum top margin - just enough to prevent clipping
+
+                                // Use dynamic spacing that matches the left panel
                                 const yOffset = scaledData
                                     .slice(0, index)
-                                    .reduce((total, p) => total + calculateBarHeight(p) + ultraMinimalSpacing, topMargin);
+                                    .reduce((total, p) => total + calculateBarHeight(p) + spacingInfo.spacing, spacingInfo.topMargin + spacingInfo.spacing);
 
                                 const projectStartDate = parseDate(project.startDate);
                                 const projectEndDate = parseDate(project.endDate);
-                                
+
                                 console.log('📅 Parsed project dates:', {
                                     projectStartDate: projectStartDate?.toISOString(),
                                     projectEndDate: projectEndDate?.toISOString()
                                 });
-                                
+
                                 // Skip rendering if dates are invalid
                                 if (!projectStartDate || !projectEndDate) {
                                     console.warn('⚠️ Skipping project due to invalid dates:', project.name);
@@ -658,18 +713,15 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                                     monthWidth: dynamicMonthWidth
                                 });
 
-                                // Calculate the project's actual content height
-                                const totalHeight = calculateBarHeight(project);
-                                
                                 // Get detailed milestone label height breakdown
-                                const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, dynamicMonthWidth);
+                                const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, dynamicMonthWidth, index);
                                 
                                 // Position Gantt bar accounting for milestone labels above it
                                 const ganttBarY = yOffset + Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)) + milestoneHeights.above;
                                 const milestoneY = ganttBarY + 6; // Center milestones with the 12px bar
 
                                 // Process milestones with position information
-                                const milestones = processMilestonesWithPosition(project.milestones, startDate, dynamicMonthWidth, projectEndDate);
+                                const milestones = processMilestonesWithPosition(project.milestones, startDate, dynamicMonthWidth, projectEndDate, index, endDate);
 
                                 return (
                                     <g key={`project-${project.id}`} className="project-group">

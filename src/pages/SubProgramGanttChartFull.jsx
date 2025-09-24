@@ -81,13 +81,30 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     const processedData = useMemo(() => {
         if (!data?.projects) return [];
         
-        // Filter projects based on selected program
-        const filteredProjects = selectedProgram === 'All'
-            ? data.projects
-            : data.projects.filter(project => {
+        // Filter out null/undefined projects first
+        const cleanedProjects = (data.projects || []).filter(project => project && project.PROJECT_NAME);
+
+        // Apply program filtering
+        const programFilteredProjects = selectedProgram === 'All'
+            ? cleanedProjects
+            : cleanedProjects.filter(project => {
                 const parentName = project.COE_ROADMAP_PARENT_NAME || project.INV_FUNCTION || 'Unassigned';
                 return parentName === selectedProgram;
             });
+
+        // Apply timeline filtering BEFORE pagination
+        const { startDate: timelineStart, endDate: timelineEnd } = getTimelineRangeForView(timelineView);
+        const timelineFilteredProjects = programFilteredProjects.filter(project => {
+            const projectForFiltering = {
+                startDate: project.START_DATE,
+                endDate: project.END_DATE,
+                name: project.PROJECT_NAME
+            };
+            return isProjectInTimelineViewport(projectForFiltering, timelineStart, timelineEnd);
+        });
+
+        // Use timeline-filtered projects for all subsequent processing
+        const filteredProjects = timelineFilteredProjects;
 
         // If no data found after filtering, return a helpful message
         if (filteredProjects.length === 0 && selectedProgram !== 'All') {
@@ -250,8 +267,41 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         };
         
         return getSmartPaginatedData(hierarchicalData, currentPage, ITEMS_PER_PAGE);
-    }, [data?.projects, currentPage, selectedProgram]);
-    
+    }, [data?.projects, currentPage, selectedProgram, timelineView]);
+
+    // Calculate correct totalItems for pagination after all filtering
+    const actualTotalItems = useMemo(() => {
+        if (!data?.projects) return 0;
+
+        // Apply same filtering logic as in processedData
+        const cleanedProjects = (data.projects || []).filter(project => project && project.PROJECT_NAME);
+
+        const programFilteredProjects = selectedProgram === 'All'
+            ? cleanedProjects
+            : cleanedProjects.filter(project => {
+                const parentName = project.COE_ROADMAP_PARENT_NAME || project.INV_FUNCTION || 'Unassigned';
+                return parentName === selectedProgram;
+            });
+
+        const { startDate: timelineStart, endDate: timelineEnd } = getTimelineRangeForView(timelineView);
+        const timelineFilteredProjects = programFilteredProjects.filter(project => {
+            const projectForFiltering = {
+                startDate: project.START_DATE,
+                endDate: project.END_DATE,
+                name: project.PROJECT_NAME
+            };
+            return isProjectInTimelineViewport(projectForFiltering, timelineStart, timelineEnd);
+        });
+
+        // For "All" view, add hierarchical headers count
+        if (selectedProgram === 'All') {
+            const uniquePrograms = new Set(timelineFilteredProjects.map(p => p.COE_ROADMAP_PARENT_NAME || p.INV_FUNCTION || 'Unassigned')).size;
+            return timelineFilteredProjects.length + uniquePrograms;
+        }
+
+        return timelineFilteredProjects.length;
+    }, [data?.projects, selectedProgram, timelineView]);
+
     const scrollContainerRef = useRef(null);
     const headerScrollRef = useRef(null);
     const leftPanelRef = useRef(null);
@@ -523,22 +573,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
 
     // Handle page changes for client-side pagination
     const handlePageChangeCallback = useCallback((newPage) => {
-        // Calculate total based on filtered and hierarchical data
-        const filteredProjects = selectedProgram === 'All' 
-            ? (data?.projects || [])
-            : (data?.projects || []).filter(project => {
-                const parentName = project.COE_ROADMAP_PARENT_NAME || project.INV_FUNCTION || 'Unassigned';
-                return parentName === selectedProgram;
-            });
-        
-        // For "All" view with hierarchical grouping, count includes headers + children
-        const totalItemsCount = selectedProgram === 'All' 
-            ? filteredProjects.length + new Set(filteredProjects.map(p => p.COE_ROADMAP_PARENT_NAME || p.INV_FUNCTION || 'Unassigned')).size
-            : filteredProjects.length;
-            
-        const totalPages = Math.ceil(totalItemsCount / ITEMS_PER_PAGE);
+        const totalPages = Math.ceil(actualTotalItems / ITEMS_PER_PAGE);
         handlePageChange(newPage, totalPages, setCurrentPage);
-    }, [data?.projects, selectedProgram]);
+    }, [actualTotalItems]);
 
     // Calculate milestone label height to prevent overlap
     const calculateMilestoneLabelHeight = (milestones, monthWidth = 100) => {
@@ -647,56 +684,31 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         }
 
         const constants = getResponsiveConstants();
-        let projects = processedData || [];
+        const projects = processedData || [];
         const milestones = data.milestones || [];
 
-        console.log('🎯 MAIN PROCESSING: Starting with', projects.length, 'projects');
+        console.log('🎯 MAIN PROCESSING: Starting with', projects.length, 'projects (already filtered and paginated)');
         console.log('🎯 MAIN PROCESSING: First 3 project names:', projects.slice(0, 3).map(p => p.PROJECT_NAME));
 
-        // Filter out any null/undefined projects to prevent rendering errors
-        projects = projects.filter(project => project && project.PROJECT_NAME);
-        console.log('🎯 MAIN PROCESSING: After null filtering:', projects.length, 'projects');
-
-        // Filter projects based on selected program
-        if (selectedProgram !== 'All') {
-            projects = projects.filter(project => {
-                // Check both COE_ROADMAP_PARENT_NAME (from hierarchy) and INV_FUNCTION (from investment)
-                return project.COE_ROADMAP_PARENT_NAME === selectedProgram || 
-                       project.INV_FUNCTION === selectedProgram;
-            });
-        }
-
-        // Get timeline date range BEFORE filtering
+        // Get timeline date range for rendering calculations
         const { startDate, endDate } = getTimelineRangeForView(timelineView);
         console.log('📅 SubProgram Timeline view:', timelineView);
         console.log('📅 SubProgram Timeline range:', startDate?.toISOString(), 'to', endDate?.toISOString());
-        
+
         // Calculate total months dynamically based on selected timeline
         const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
-        
+
         // Calculate dynamic month width to fit viewport (no horizontal scrolling)
         const availableGanttWidth = window.innerWidth - constants.LABEL_WIDTH - 40; // 40px for margins/padding
         const dynamicMonthWidth = Math.max(30, Math.floor(availableGanttWidth / totalMonths)); // Minimum 30px per month
         const monthWidth = dynamicMonthWidth;
-        
+
         console.log('📐 SubProgram Dynamic sizing:', {
             totalMonths,
             availableGanttWidth,
             dynamicMonthWidth,
             viewportWidth: window.innerWidth
         });
-
-        // Filter projects to only include those within the timeline viewport
-        projects = projects.filter(project => {
-            // Convert project data format to match isProjectInTimelineViewport expectations
-            const projectForFiltering = {
-                startDate: project.START_DATE,
-                endDate: project.END_DATE,
-                name: project.PROJECT_NAME
-            };
-            return isProjectInTimelineViewport(projectForFiltering, startDate, endDate);
-        });
-        console.log(`🎯 TIMELINE FILTERING: ${projects.length} projects remain after viewport filtering (${timelineView})`);
         
 
         // Note: Hierarchical grouping and smart pagination now happens in processedData memo
@@ -1001,40 +1013,56 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     </div>
                 )}
                 
-                {/* Compact Header Row */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <label className="font-medium text-sm">Program:</label>
-                        <select
-                            value={selectedProgram}
-                            onChange={handleProgramChange}
-                            className="border border-gray-300 rounded px-2 py-1 bg-white text-sm min-w-[120px]"
-                        >
-                            {programNames.map((name) => (
-                                <option key={name} value={name}>
-                                    {name}
-                                </option>
-                            ))}
-                        </select>
+                {/* Two-row Header Layout to prevent overflow */}
+                <div className="space-y-2">
+                    {/* First Row: Controls and Pagination */}
+                    <div className="flex items-center justify-between">
+                        {/* Left: Controls */}
+                        <div className="flex items-center space-x-3">
+                            <label className="font-medium text-sm">Program:</label>
+                            <select
+                                value={selectedProgram}
+                                onChange={handleProgramChange}
+                                className="border border-gray-300 rounded px-2 py-1 bg-white text-sm min-w-[120px]"
+                            >
+                                {programNames.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
 
-                        {/* Timeline View Dropdown */}
-                        <TimelineViewDropdown 
-                            selectedView={timelineView}
-                            onViewChange={setTimelineView}
-                        />
-                        
-                        {/* Zoom control removed */}
+                            <TimelineViewDropdown
+                                selectedView={timelineView}
+                                onViewChange={setTimelineView}
+                            />
+                        </div>
+
+                        {/* Center: Pagination */}
+                        <div className="flex-1 flex justify-center min-w-0">
+                            <PaginationControls
+                                currentPage={currentPage}
+                                totalItems={actualTotalItems}
+                                itemsPerPage={ITEMS_PER_PAGE}
+                                onPageChange={handlePageChangeCallback}
+                                compact={true}
+                            />
+                        </div>
+
+                        {/* Right: Spacer to maintain layout balance */}
+                        <div className="w-40"></div>
                     </div>
 
-                    <div className="flex items-center space-x-3">
-                        {/* Compact Phase Legend */}
-                        <div className="flex items-center space-x-2">
+                    {/* Second Row: Legends */}
+                    <div className="flex items-center justify-center gap-8">
+                        {/* Phase Legend */}
+                        <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-gray-700">Phases:</span>
-                            <div className="flex space-x-2">
+                            <div className="flex gap-2">
                                 {['Initiate', 'Evaluate', 'Develop', 'Deploy', 'Sustain', 'Close'].map((phase) => (
-                                    <div key={phase} className="flex items-center space-x-1">
-                                        <div 
-                                            className="w-2 h-2 rounded" 
+                                    <div key={phase} className="flex items-center gap-1">
+                                        <div
+                                            className="w-2 h-2 rounded"
                                             style={{ backgroundColor: PHASE_COLORS[phase] || PHASE_COLORS['Unphased'] }}
                                         ></div>
                                         <span className="text-xs text-gray-600">{phase}</span>
@@ -1043,52 +1071,30 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                             </div>
                         </div>
 
-                        {/* Compact Milestone Legend */}
+                        {/* Milestone Legend */}
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-gray-600">Legend:</span>
+                            <span className="text-xs font-medium text-gray-600">Milestones:</span>
                             <div className="flex gap-2">
-                                {/* Complete Milestone */}
                                 <div className="flex items-center gap-1">
                                     <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="white"
-                                            stroke="#3B82F6"
-                                            strokeWidth="2"
-                                        />
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="#005CB9" stroke="#005CB9" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Complete</span>
+                                    <span className="text-xs text-gray-700">Complete</span>
                                 </div>
-
-                                {/* Incomplete Milestone */}
                                 <div className="flex items-center gap-1">
                                     <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="#3B82F6"
-                                            stroke="#3B82F6"
-                                            strokeWidth="2"
-                                        />
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="white" stroke="#005CB9" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Incomplete</span>
+                                    <span className="text-xs text-gray-700">Incomplete</span>
                                 </div>
-
-                                {/* Multiple Milestones */}
                                 <div className="flex items-center gap-1">
                                     <svg width="10" height="10" viewBox="0 0 16 16">
-                                        <path
-                                            d="M8 2 L14 8 L8 14 L2 8 Z"
-                                            fill="#1F2937"
-                                            stroke="white"
-                                            strokeWidth="2"
-                                        />
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="black" stroke="white" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Multiple</span>
+                                    <span className="text-xs text-gray-700">Multiple</span>
                                 </div>
                             </div>
                         </div>
-
-                        {/* Pagination removed from header to prevent overflow - available at bottom */}
                     </div>
                 </div>
             </div>
@@ -1578,11 +1584,11 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             {(!loading || (data && data.projects)) && !error && renderGanttChart()}
             
             {/* Bottom Pagination Controls */}
-            {(!loading || (data && data.projects)) && !error && totalItems > 0 && (
+            {(!loading || (data && data.projects)) && !error && actualTotalItems > 0 && (
                 <div className="p-4 bg-white border-t border-gray-200">
-                    <PaginationControls 
+                    <PaginationControls
                         currentPage={currentPage}
-                        totalItems={totalItems}
+                        totalItems={actualTotalItems}
                         itemsPerPage={ITEMS_PER_PAGE}
                         onPageChange={handlePageChangeCallback}
                     />
