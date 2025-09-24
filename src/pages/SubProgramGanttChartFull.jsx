@@ -9,12 +9,24 @@ import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE }
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
 import { differenceInMonths, differenceInDays } from 'date-fns';
 
-const ZOOM_LEVELS = {
-    0.5: { MONTH_WIDTH: 40, VISIBLE_MONTHS: 24, FONT_SIZE: '8px', LABEL_WIDTH: 150, BASE_BAR_HEIGHT: 4, TOUCH_TARGET_SIZE: 20, MILESTONE_LABEL_HEIGHT: 6, MILESTONE_FONT_SIZE: '7px', PROJECT_SCALE: 2.0, ROW_PADDING: 4 },
-    0.75: { MONTH_WIDTH: 60, VISIBLE_MONTHS: 18, FONT_SIZE: '10px', LABEL_WIDTH: 180, BASE_BAR_HEIGHT: 6, TOUCH_TARGET_SIZE: 20, MILESTONE_LABEL_HEIGHT: 9, MILESTONE_FONT_SIZE: '9px', PROJECT_SCALE: 1.5, ROW_PADDING: 6 },
-    1.0: { MONTH_WIDTH: 80, VISIBLE_MONTHS: 12, FONT_SIZE: '12px', LABEL_WIDTH: 220, BASE_BAR_HEIGHT: 8, TOUCH_TARGET_SIZE: 24, MILESTONE_LABEL_HEIGHT: 12, MILESTONE_FONT_SIZE: '11px', PROJECT_SCALE: 1.0, ROW_PADDING: 8 },
-    1.25: { MONTH_WIDTH: 100, VISIBLE_MONTHS: 10, FONT_SIZE: '14px', LABEL_WIDTH: 260, BASE_BAR_HEIGHT: 10, TOUCH_TARGET_SIZE: 28, MILESTONE_LABEL_HEIGHT: 15, MILESTONE_FONT_SIZE: '13px', PROJECT_SCALE: 0.8, ROW_PADDING: 10 },
-    1.5: { MONTH_WIDTH: 120, VISIBLE_MONTHS: 8, FONT_SIZE: '16px', LABEL_WIDTH: 300, BASE_BAR_HEIGHT: 12, TOUCH_TARGET_SIZE: 32, MILESTONE_LABEL_HEIGHT: 18, MILESTONE_FONT_SIZE: '15px', PROJECT_SCALE: 0.6, ROW_PADDING: 12 }
+// Fixed constants (zoom removed)
+const getResponsiveConstants = () => {
+    const screenWidth = window.innerWidth;
+    const isMobile = screenWidth < 768;
+    const mobileAdjustment = isMobile ? 0.8 : 1.0;
+
+    return {
+        MONTH_WIDTH: Math.round(80 * mobileAdjustment),
+        VISIBLE_MONTHS: isMobile ? Math.max(6, Math.round(12 * 0.6)) : 12,
+        FONT_SIZE: '12px',
+        LABEL_WIDTH: Math.round(220 * mobileAdjustment),
+        BASE_BAR_HEIGHT: Math.round(8 * mobileAdjustment),
+        TOUCH_TARGET_SIZE: Math.max(isMobile ? 44 : 16, Math.round(24 * mobileAdjustment)),
+        MILESTONE_LABEL_HEIGHT: Math.round(12 * mobileAdjustment),
+        MILESTONE_FONT_SIZE: '11px',
+        PROJECT_SCALE: 1.0,
+        ROW_PADDING: Math.round(8 * mobileAdjustment)
+    };
 };
 
 const PHASE_COLORS = {
@@ -44,7 +56,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false); // Will use cached data
     const [error, setError] = useState(null);
-    const [zoomLevel, setZoomLevel] = useState(1.0);
+    const [responsiveConstants] = useState(getResponsiveConstants());
     const [selectedProgram, setSelectedProgram] = useState('All');
     const [programNames, setProgramNames] = useState(['All']);
     const [dataVersion, setDataVersion] = useState(0);
@@ -70,12 +82,18 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         if (!data?.projects) return [];
         
         // Filter projects based on selected program
-        const filteredProjects = selectedProgram === 'All' 
-            ? data.projects 
+        const filteredProjects = selectedProgram === 'All'
+            ? data.projects
             : data.projects.filter(project => {
                 const parentName = project.COE_ROADMAP_PARENT_NAME || project.INV_FUNCTION || 'Unassigned';
                 return parentName === selectedProgram;
             });
+
+        // If no data found after filtering, return a helpful message
+        if (filteredProjects.length === 0 && selectedProgram !== 'All') {
+            console.log(`⚠️ No projects found for selected program: ${selectedProgram}`);
+            return [];
+        }
         
         // Apply hierarchical grouping BEFORE pagination
         const hierarchicalData = selectedProgram === 'All' ? (() => {
@@ -238,7 +256,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     const headerScrollRef = useRef(null);
     const leftPanelRef = useRef(null);
 
-    const getResponsiveConstants = () => ZOOM_LEVELS[zoomLevel];
+    // responsiveConstants already declared as state above
 
     // Simplified milestone processing to prevent infinite loops
     const processMilestonesForProject = (milestones, startDate, monthWidth, projectEndDate = null) => {
@@ -370,8 +388,13 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             setError(null);
             
             console.log(`✅ SubProgram data filtered: ${filteredProjects.length} items from cache`);
+
+            // If no projects match the filter, show a helpful message instead of error
+            if (filteredProjects.length === 0 && selectedProgramId) {
+                setError(`No sub-programs found for the selected program. Try selecting "All" or a different program.`);
+            }
         } else if (!cacheLoading && !subProgramData) {
-            setError('No subprogram data available');
+            setError('No subprogram data available. Please check your connection and try again.');
             setLoading(false);
         }
     }, [subProgramData, cacheLoading, selectedProgramId, selectedProgramName]);
@@ -467,9 +490,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         loadData();
     }, []);
 
-    const handleZoomChange = (newZoom) => {
-        setZoomLevel(newZoom);
-    };
+    // Zoom removed
 
     const handleProgramChange = (e) => {
         setSelectedProgram(e.target.value);
@@ -598,7 +619,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         const estimatedNameWidth = constants.LABEL_WIDTH - 16; // Account for padding
         const maxCharsPerLine = Math.max(30, estimatedNameWidth / 7); // More efficient text wrapping
         const textLines = Math.ceil(projectName.length / maxCharsPerLine);
-        const lineHeight = Math.round(12 * zoomLevel); // Compact line height
+        const lineHeight = Math.round(12 * 1.0); // Compact line height
         const nameHeight = Math.max(16, textLines * lineHeight); // Just enough for text
         
         // Content-driven height calculation with proper milestone spacing (Program page logic)
@@ -609,7 +630,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         const contentDrivenHeight = Math.max(leftPanelNeeds, rightPanelNeeds);
         
         // Ensure minimum usability (same as Program page)
-        const minimumHeight = Math.round(28 * zoomLevel); // Same as Program page
+        const minimumHeight = Math.round(28 * 1.0); // Same as Program page
         
         return Math.max(minimumHeight, contentDrivenHeight);
     };
@@ -1002,20 +1023,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                             onViewChange={setTimelineView}
                         />
                         
-                        <div className="flex items-center space-x-1">
-                            <label className="text-sm font-medium text-gray-700">Zoom:</label>
-                            <select
-                                value={zoomLevel}
-                                onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-                                className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-                            >
-                                <option value={0.5}>50%</option>
-                                <option value={0.75}>75%</option>
-                                <option value={1.0}>100%</option>
-                                <option value={1.25}>125%</option>
-                                <option value={1.5}>150%</option>
-                            </select>
-                        </div>
+                        {/* Zoom control removed */}
                     </div>
 
                     <div className="flex items-center space-x-3">
@@ -1080,13 +1088,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                             </div>
                         </div>
 
-                        {/* Inline Pagination Controls */}
-                        <PaginationControls 
-                            currentPage={currentPage}
-                            totalItems={totalItems}
-                            itemsPerPage={ITEMS_PER_PAGE}
-                            onPageChange={handlePageChangeCallback}
-                        />
+                        {/* Pagination removed from header to prevent overflow - available at bottom */}
                     </div>
                 </div>
             </div>
@@ -1111,8 +1113,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     {/* Project Rows */}
                     <div style={{ position: 'relative', height: (() => {
                         // Calculate total height using ultra-compact logic (like Program page)
-                        const topMargin = Math.round(8 * zoomLevel); // Match Program page's topMargin
-                        const ultraMinimalSpacing = Math.round(1 * zoomLevel); // Ultra-minimal spacing
+                        const topMargin = Math.round(8 * 1.0); // Match Program page's topMargin
+                        const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing
                         return validProjectRows.reduce((total, p) => {
                             const projectEndDate = p.hasPhases
                                 ? (p.phases && p.phases.length > 0 ? p.phases.reduce((latest, phase) => {
@@ -1156,8 +1158,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                             );
                             
                             const rowHeight = calculateBarHeight(row, processedMilestones);
-                            const ultraMinimalSpacing = Math.round(1 * zoomLevel); // Ultra-minimal spacing like Program page
-                            const topMargin = Math.round(8 * zoomLevel); // Match Program page's topMargin for proper positioning
+                            const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing like Program page
+                            const topMargin = Math.round(8 * 1.0); // Match Program page's topMargin for proper positioning
                             
                             // Calculate cumulative Y offset to match Gantt bars with ultra-compact spacing
                             const yOffset = validProjectRows
@@ -1264,8 +1266,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                         onScroll={handleScroll}
                     >
                         <div style={{ width: `${timelineWidth}px`, height: (() => {
-                            const topMargin = Math.round(8 * zoomLevel);
-                            const ultraMinimalSpacing = Math.round(1 * zoomLevel);
+                            const topMargin = Math.round(8 * 1.0);
+                            const ultraMinimalSpacing = Math.round(1 * 1.0);
                             const bottomPadding = 50;
                             return validProjectRows.reduce((total, p) => {
                                 const projectEndDate = p.hasPhases
@@ -1288,8 +1290,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                 key={`gantt-${selectedProgram}-${dataVersion}`} // Add key to force re-render
                                 width={timelineWidth}
                                 height={(() => {
-                                    const topMargin = Math.round(8 * zoomLevel);
-                                    const ultraMinimalSpacing = Math.round(1 * zoomLevel);
+                                    const topMargin = Math.round(8 * 1.0);
+                                    const ultraMinimalSpacing = Math.round(1 * 1.0);
                                     const bottomPadding = 50;
                                     return validProjectRows.reduce((total, p) => {
                                         const projectEndDate = p.hasPhases
@@ -1340,8 +1342,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                     );
 
                                     // Calculate proper Y offset using Program page's ultra-compact logic
-                                    const ultraMinimalSpacing = Math.round(1 * zoomLevel); // Ultra-minimal spacing like Program page
-                                    const topMargin = Math.round(8 * zoomLevel); // Match Program page's topMargin
+                                    const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing like Program page
+                                    const topMargin = Math.round(8 * 1.0); // Match Program page's topMargin
                                     const yOffset = validProjectRows
                                         .slice(0, index)
                                         .reduce((total, p, i) => {
@@ -1371,7 +1373,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                     const milestoneLabelHeights = calculateMilestoneLabelHeight(processedMilestones, constants.MONTH_WIDTH);
                                     
                                     // Position Gantt bar exactly like Program page
-                                    const ganttBarY = yOffset + Math.round(8 * zoomLevel) + milestoneLabelHeights.above;
+                                    const ganttBarY = yOffset + Math.round(8 * 1.0) + milestoneLabelHeights.above;
                                     const milestoneY = ganttBarY + Math.round(constants.BASE_BAR_HEIGHT / 2); // Center milestones with bar
                                     
                                     return (
@@ -1421,8 +1423,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                                 touchTargetSize={constants.TOUCH_TARGET_SIZE}
                                                                 fontSize={constants.FONT_SIZE}
                                                                 isMobile={false}
-                                                                zoomLevel={zoomLevel}
-                                                            />
+                                                                                                                            />
                                                         );
                                                     });
                                                 })()
@@ -1478,8 +1479,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                             touchTargetSize={constants.TOUCH_TARGET_SIZE}
                                                             fontSize={constants.FONT_SIZE}
                                                             isMobile={false}
-                                                            zoomLevel={zoomLevel}
-                                                        />
+                                                                                                                    />
                                                     );
                                                 })()
                                             )}
@@ -1507,8 +1507,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                         showLabel={milestone.showLabel}
                                                         fontSize={constants.MILESTONE_FONT_SIZE}
                                                         isMobile={false}
-                                                        zoomLevel={zoomLevel}
-                                                        isMonthlyGrouped={milestone.isMonthlyGrouped}
+                                                                                                                isMonthlyGrouped={milestone.isMonthlyGrouped}
                                                         monthlyLabels={milestone.monthlyLabels || []}
                                                         horizontalLabel={milestone.horizontalLabel || ''}
                                                         verticalLabels={milestone.verticalLabels || []}
@@ -1547,11 +1546,30 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded m-4">
                     <h3 className="font-semibold">Error Loading Sub-Program Data</h3>
                     <p>{error}</p>
-                    <button 
-                        onClick={() => window.location.reload()} 
+                    <button
+                        onClick={() => window.location.reload()}
                         className="mt-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
                     >
                         Retry
+                    </button>
+                </div>
+            )}
+
+            {/* No Data Found State */}
+            {!loading && !error && data && processedData.length === 0 && (
+                <div className="bg-yellow-50 border border-yellow-400 text-yellow-700 px-4 py-3 rounded m-4">
+                    <h3 className="font-semibold">No Sub-Program Data Found</h3>
+                    <p>
+                        {selectedProgram === 'All'
+                            ? 'No sub-program data is available for the current selection.'
+                            : `No sub-programs found for "${selectedProgram}". Try selecting "All" or a different program.`
+                        }
+                    </p>
+                    <button
+                        onClick={() => setSelectedProgram('All')}
+                        className="mt-2 bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+                    >
+                        Show All Programs
                     </button>
                 </div>
             )}

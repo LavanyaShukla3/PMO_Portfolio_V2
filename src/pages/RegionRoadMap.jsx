@@ -9,91 +9,25 @@ import GanttBar from '../components/GanttBar';
 import PaginationControls from '../components/PaginationControls';
 import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 
-// Zoom levels configuration
-const ZOOM_LEVELS = {
-    0.5: { // 50% - Maximum Zoom Out
-        MONTH_WIDTH: 40,
-        VISIBLE_MONTHS: 24,
-        FONT_SIZE: '8px',
-        LABEL_WIDTH: 160,
-        BASE_BAR_HEIGHT: 4, // Reduced for more compact rows
-        TOUCH_TARGET_SIZE: 16,
-        MILESTONE_FONT_SIZE: '8px',
-        PROJECT_SCALE: 2.0, // Show significantly more projects
-        ROW_PADDING: 3 // Minimal padding for maximum compactness
-    },
-    0.75: { // 75% - Zoom Out
-        MONTH_WIDTH: 60,
-        VISIBLE_MONTHS: 18,
-        FONT_SIZE: '10px',
-        LABEL_WIDTH: 220,
-        BASE_BAR_HEIGHT: 6, // Smaller bars for more projects
-        TOUCH_TARGET_SIZE: 20,
-        MILESTONE_FONT_SIZE: '9px',
-        PROJECT_SCALE: 1.5, // Show more projects
-        ROW_PADDING: 4 // Reduced padding
-    },
-    1.0: { // 100% - Default
-        MONTH_WIDTH: 100,
-        VISIBLE_MONTHS: 13,
-        FONT_SIZE: '14px',
-        LABEL_WIDTH: 320,
-        BASE_BAR_HEIGHT: 10,
-        TOUCH_TARGET_SIZE: 24,
-        MILESTONE_FONT_SIZE: '10px', // Reduced from default
-        PROJECT_SCALE: 1.0, // Normal project count
-        ROW_PADDING: 6 // Compact but readable padding
-    },
-    1.25: { // 125% - Zoom In
-        MONTH_WIDTH: 125,
-        VISIBLE_MONTHS: 10,
-        FONT_SIZE: '16px',
-        LABEL_WIDTH: 400,
-        BASE_BAR_HEIGHT: 14, // Larger bars for fewer projects
-        TOUCH_TARGET_SIZE: 30,
-        MILESTONE_FONT_SIZE: '12px',
-        PROJECT_SCALE: 0.7, // Show fewer projects
-        ROW_PADDING: 6 // Moderate padding for larger rows
-    },
-    1.5: { // 150% - Maximum Zoom In
-        MONTH_WIDTH: 150,
-        VISIBLE_MONTHS: 8,
-        FONT_SIZE: '18px',
-        LABEL_WIDTH: 480,
-        BASE_BAR_HEIGHT: 18, // Much larger bars
-        TOUCH_TARGET_SIZE: 36,
-        MILESTONE_FONT_SIZE: '14px',
-        PROJECT_SCALE: 0.5, // Show significantly fewer projects
-        ROW_PADDING: 8 // Standard padding for largest rows
-    }
-};
-
-// Responsive constants with zoom support
-const getResponsiveConstants = (zoomLevel = 1.0) => {
+// Fixed constants (zoom removed)
+const getResponsiveConstants = () => {
     const screenWidth = window.innerWidth;
     const isMobile = screenWidth < 768;
-    const isTablet = screenWidth >= 768 && screenWidth < 1024;
-
-    // Get base zoom configuration
-    const zoomConfig = ZOOM_LEVELS[zoomLevel] || ZOOM_LEVELS[1.0];
-
-    // Apply mobile adjustments if needed (match PortfolioGanttChart)
     const mobileAdjustment = isMobile ? 0.8 : 1.0;
 
     return {
-        MONTH_WIDTH: Math.round(zoomConfig.MONTH_WIDTH * mobileAdjustment),
-        TOTAL_MONTHS: 73,
-        LABEL_WIDTH: Math.round(zoomConfig.LABEL_WIDTH * mobileAdjustment),
-        BASE_BAR_HEIGHT: Math.round(zoomConfig.BASE_BAR_HEIGHT * mobileAdjustment),
-        VISIBLE_MONTHS: isMobile ? Math.max(6, Math.round(zoomConfig.VISIBLE_MONTHS * 0.6)) : zoomConfig.VISIBLE_MONTHS,
-        TOUCH_TARGET_SIZE: Math.max(isMobile ? 44 : 16, Math.round(zoomConfig.TOUCH_TARGET_SIZE * mobileAdjustment)),
-        FONT_SIZE: zoomConfig.FONT_SIZE,
-        MILESTONE_FONT_SIZE: zoomConfig.MILESTONE_FONT_SIZE,
-        PROJECT_SCALE: zoomConfig.PROJECT_SCALE,
-        ROW_PADDING: Math.round(zoomConfig.ROW_PADDING * mobileAdjustment),
-        ZOOM_LEVEL: zoomLevel
+        MONTH_WIDTH: Math.round(100 * mobileAdjustment),
+        VISIBLE_MONTHS: isMobile ? Math.max(6, Math.round(13 * 0.6)) : 13,
+        FONT_SIZE: '14px',
+        LABEL_WIDTH: Math.round(320 * mobileAdjustment),
+        BASE_BAR_HEIGHT: Math.round(10 * mobileAdjustment),
+        TOUCH_TARGET_SIZE: Math.max(isMobile ? 44 : 16, Math.round(24 * mobileAdjustment)),
+        MILESTONE_FONT_SIZE: '10px',
+        PROJECT_SCALE: 1.0,
+        ROW_PADDING: Math.round(6 * mobileAdjustment)
     };
 };
+
 
 // Milestone label spacing constants (match PortfolioGanttChart)
 const LINE_HEIGHT = 12;

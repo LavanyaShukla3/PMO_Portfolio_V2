@@ -8,101 +8,27 @@ import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 import { differenceInDays, differenceInMonths } from 'date-fns';
 
-// Zoom levels configuration
-const ZOOM_LEVELS = {
-    0.5: { // 50% - Maximum Zoom Out
-        MONTH_WIDTH: 40,
-        VISIBLE_MONTHS: 24,
-        FONT_SIZE: '8px',
-        LABEL_WIDTH: 100,
-        BASE_BAR_HEIGHT: 4, // Reduced for more compact rows
-        PROGRAM_BAR_HEIGHT: 6,
-        TOUCH_TARGET_SIZE: 16,
-        MILESTONE_LABEL_HEIGHT: 8,
-        MILESTONE_FONT_SIZE: '8px',
-        PROJECT_SCALE: 2.0, // Show significantly more projects
-        ROW_PADDING: 4 // Reduced padding between rows
-    },
-    0.75: { // 75% - Zoom Out
-        MONTH_WIDTH: 60,
-        VISIBLE_MONTHS: 18,
-        FONT_SIZE: '10px',
-        LABEL_WIDTH: 140,
-        BASE_BAR_HEIGHT: 6, // Smaller bars for more projects
-        PROGRAM_BAR_HEIGHT: 8,
-        TOUCH_TARGET_SIZE: 20,
-        MILESTONE_LABEL_HEIGHT: 12,
-        MILESTONE_FONT_SIZE: '9px',
-        PROJECT_SCALE: 1.5, // Show more projects
-        ROW_PADDING: 6
-    },
-    1.0: { // 100% - Default
-        MONTH_WIDTH: 100,
-        VISIBLE_MONTHS: 13,
-        FONT_SIZE: '14px',
-        LABEL_WIDTH: 220,
-        BASE_BAR_HEIGHT: 10,
-        PROGRAM_BAR_HEIGHT: 12,
-        TOUCH_TARGET_SIZE: 24,
-        MILESTONE_LABEL_HEIGHT: 20,
-        MILESTONE_FONT_SIZE: '10px', // Reduced from default
-        PROJECT_SCALE: 1.0, // Normal project count
-        ROW_PADDING: 8 // Standard padding
-    },
-    1.25: { // 125% - Zoom In
-        MONTH_WIDTH: 125,
-        VISIBLE_MONTHS: 10,
-        FONT_SIZE: '16px',
-        LABEL_WIDTH: 275,
-        BASE_BAR_HEIGHT: 14,
-        PROGRAM_BAR_HEIGHT: 16,
-        TOUCH_TARGET_SIZE: 30,
-        MILESTONE_LABEL_HEIGHT: 28,
-        MILESTONE_FONT_SIZE: '12px',
-        PROJECT_SCALE: 0.7, // Show fewer projects
-        ROW_PADDING: 12 // More padding for larger rows
-    },
-    1.5: { // 150% - Maximum Zoom In
-        MONTH_WIDTH: 150,
-        VISIBLE_MONTHS: 8,
-        FONT_SIZE: '18px',
-        LABEL_WIDTH: 330,
-        BASE_BAR_HEIGHT: 18,
-        PROGRAM_BAR_HEIGHT: 20,
-        TOUCH_TARGET_SIZE: 36,
-        MILESTONE_LABEL_HEIGHT: 32,
-        MILESTONE_FONT_SIZE: '14px',
-        PROJECT_SCALE: 0.5, // Show significantly fewer projects
-        ROW_PADDING: 16 // Maximum padding for largest rows
-    }
-};
-
-// Responsive constants with zoom support
-const getResponsiveConstants = (zoomLevel = 1.0) => {
+// Fixed constants (zoom removed)
+const getResponsiveConstants = () => {
     const screenWidth = window.innerWidth;
     const isMobile = screenWidth < 768;
-    const isTablet = screenWidth >= 768 && screenWidth < 1024;
-
-    // Get base zoom configuration
-    const zoomConfig = ZOOM_LEVELS[zoomLevel] || ZOOM_LEVELS[1.0];
 
     // Apply mobile adjustments if needed
     const mobileAdjustment = isMobile ? 0.8 : 1.0;
 
     return {
-        MONTH_WIDTH: Math.round(zoomConfig.MONTH_WIDTH * mobileAdjustment),
+        MONTH_WIDTH: Math.round(100 * mobileAdjustment),
         TOTAL_MONTHS: 73,
-        LABEL_WIDTH: Math.round(zoomConfig.LABEL_WIDTH * mobileAdjustment),
-        BASE_BAR_HEIGHT: Math.round(zoomConfig.BASE_BAR_HEIGHT * mobileAdjustment),
-        PROGRAM_BAR_HEIGHT: Math.round(zoomConfig.PROGRAM_BAR_HEIGHT * mobileAdjustment),
-        MILESTONE_LABEL_HEIGHT: Math.round(zoomConfig.MILESTONE_LABEL_HEIGHT * mobileAdjustment),
-        VISIBLE_MONTHS: isMobile ? Math.max(6, Math.round(zoomConfig.VISIBLE_MONTHS * 0.6)) : zoomConfig.VISIBLE_MONTHS,
-        TOUCH_TARGET_SIZE: Math.max(isMobile ? 44 : 16, Math.round(zoomConfig.TOUCH_TARGET_SIZE * mobileAdjustment)),
-        FONT_SIZE: zoomConfig.FONT_SIZE,
-        MILESTONE_FONT_SIZE: zoomConfig.MILESTONE_FONT_SIZE,
-        PROJECT_SCALE: zoomConfig.PROJECT_SCALE,
-        ROW_PADDING: Math.round(zoomConfig.ROW_PADDING * mobileAdjustment),
-        ZOOM_LEVEL: zoomLevel
+        LABEL_WIDTH: Math.round(220 * mobileAdjustment),
+        BASE_BAR_HEIGHT: Math.round(10 * mobileAdjustment),
+        PROGRAM_BAR_HEIGHT: Math.round(12 * mobileAdjustment),
+        MILESTONE_LABEL_HEIGHT: Math.round(20 * mobileAdjustment),
+        VISIBLE_MONTHS: isMobile ? Math.max(6, Math.round(13 * 0.6)) : 13,
+        TOUCH_TARGET_SIZE: Math.max(isMobile ? 44 : 16, Math.round(24 * mobileAdjustment)),
+        FONT_SIZE: '14px',
+        MILESTONE_FONT_SIZE: '10px',
+        PROJECT_SCALE: 1.0,
+        ROW_PADDING: Math.round(8 * mobileAdjustment)
     };
 };
 
@@ -179,8 +105,7 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
 
 const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackToPortfolio, onDrillToSubProgram }) => {
     const [selectedProgram, setSelectedProgram] = useState('All');
-    const [zoomLevel, setZoomLevel] = useState(1.0);
-    const [responsiveConstants, setResponsiveConstants] = useState(getResponsiveConstants(1.0));
+    const [responsiveConstants, setResponsiveConstants] = useState(getResponsiveConstants());
     const [loading, setLoading] = useState(false); // Will use cached data
     const [error, setError] = useState(null);
     
@@ -226,41 +151,15 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         viewportWidth: window.innerWidth
     });
 
-    // Handle window resize and zoom changes
+    // Handle window resize
     useEffect(() => {
         const handleResize = () => {
-            setResponsiveConstants(getResponsiveConstants(zoomLevel));
+            setResponsiveConstants(getResponsiveConstants());
         };
 
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [zoomLevel]);
-
-    // Update responsive constants when zoom level changes
-    useEffect(() => {
-        setResponsiveConstants(getResponsiveConstants(zoomLevel));
-    }, [zoomLevel]);
-
-    // Zoom handlers
-    const handleZoomIn = () => {
-        const zoomLevels = Object.keys(ZOOM_LEVELS).map(Number).sort((a, b) => a - b);
-        const currentIndex = zoomLevels.indexOf(zoomLevel);
-        if (currentIndex < zoomLevels.length - 1) {
-            setZoomLevel(zoomLevels[currentIndex + 1]);
-        }
-    };
-
-    const handleZoomOut = () => {
-        const zoomLevels = Object.keys(ZOOM_LEVELS).map(Number).sort((a, b) => a - b);
-        const currentIndex = zoomLevels.indexOf(zoomLevel);
-        if (currentIndex > 0) {
-            setZoomLevel(zoomLevels[currentIndex - 1]);
-        }
-    };
-
-    const handleZoomReset = () => {
-        setZoomLevel(1.0);
-    };
+    }, []);
 
     // Use cached data and filter by portfolio
     useEffect(() => {
@@ -590,7 +489,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         const estimatedNameWidth = responsiveConstants.LABEL_WIDTH - 16; // Account for padding
         const maxCharsPerLine = Math.max(30, estimatedNameWidth / 7); // More efficient text wrapping
         const textLines = Math.ceil(projectName.length / maxCharsPerLine);
-        const lineHeight = Math.round(12 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Compact line height
+        const lineHeight = Math.round(12 * 1.0); // Compact line height
         const nameHeight = Math.max(16, textLines * lineHeight); // Just enough for text
         
         // STEP 4: Content-driven height calculation with proper milestone spacing
@@ -604,18 +503,18 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         const contentDrivenHeight = Math.max(leftPanelNeeds, rightPanelNeeds);
         
         // STEP 5: Ensure minimum usability
-        const minimumHeight = Math.round(28 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Reduced minimum
+        const minimumHeight = Math.round(28 * 1.0); // Reduced minimum
         
         return Math.max(minimumHeight, contentDrivenHeight);
     };
 
     const getTotalHeight = () => {
         const scaledData = getScaledFilteredData();
-        const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing - just 1px separation
+        const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing - just 1px separation
         return scaledData.reduce((total, project) => {
             const barHeight = calculateBarHeight(project);
             return total + barHeight + ultraMinimalSpacing;
-        }, Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0))); // Absolute minimum top margin - just enough to prevent clipping
+        }, Math.round(8 * 1.0)); // Absolute minimum top margin - just enough to prevent clipping
     };
 
     return (
@@ -691,45 +590,28 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                         />
                     </div>
                     
-                    {/* Right Section: Compact Zoom & Legend */}
+                    {/* Milestone Legend */}
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1">
-                            <button
-                                onClick={handleZoomOut}
-                                disabled={zoomLevel <= 0.5}
-                                className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
-                                title="Zoom Out"
-                            >
-                                −
-                            </button>
-                            <span className="text-xs text-gray-600 min-w-[35px] text-center font-medium">
-                                {Math.round(zoomLevel * 100)}%
-                            </span>
-                            <button
-                                onClick={handleZoomIn}
-                                disabled={zoomLevel >= 1.5}
-                                className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
-                                title="Zoom In"
-                            >
-                                +
-                            </button>
-                        </div>
-                        
-                        {/* Mini Legend */}
-                        <div className="flex items-center gap-1 ml-2">
-                            <span className="text-xs font-medium text-gray-600">Legend:</span>
-                            <div className="flex gap-1">
+                            <span className="text-xs font-medium text-gray-600">Milestones:</span>
+                            <div className="flex gap-3">
                                 <div className="flex items-center gap-1">
-                                    <svg width="8" height="8" viewBox="0 0 16 16">
-                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="white" stroke="#3B82F6" strokeWidth="2"/>
+                                    <svg width="10" height="10" viewBox="0 0 16 16">
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="#005CB9" stroke="#005CB9" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Done</span>
+                                    <span className="text-xs text-gray-700">Complete</span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <svg width="8" height="8" viewBox="0 0 16 16">
-                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="#3B82F6" stroke="#3B82F6" strokeWidth="2"/>
+                                    <svg width="10" height="10" viewBox="0 0 16 16">
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="white" stroke="#005CB9" strokeWidth="2"/>
                                     </svg>
-                                    <span className="text-xs text-gray-500">Todo</span>
+                                    <span className="text-xs text-gray-700">Incomplete</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <svg width="10" height="10" viewBox="0 0 16 16">
+                                        <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="black" stroke="white" strokeWidth="2"/>
+                                    </svg>
+                                    <span className="text-xs text-gray-700">Multiple</span>
                                 </div>
                             </div>
                         </div>
@@ -780,8 +662,8 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                     <div style={{ position: 'relative', height: getTotalHeight() }}>
                         {getScaledFilteredData().map((project, index) => {
                             const scaledData = getScaledFilteredData();
-                            const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                            const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Absolute minimum top margin - just enough to prevent clipping
+                            const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing
+                            const topMargin = Math.round(8 * 1.0); // Absolute minimum top margin - just enough to prevent clipping
                             const yOffset = scaledData
                                 .slice(0, index)
                                 .reduce((total, p) => total + calculateBarHeight(p) + ultraMinimalSpacing, topMargin);
@@ -859,8 +741,8 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                             {getScaledFilteredData().map((project, index) => {
                                 // Calculate cumulative Y offset with ultra-minimal spacing to pack rows ultra-tightly
                                 const scaledData = getScaledFilteredData();
-                                const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                                const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Absolute minimum top margin - just enough to prevent clipping
+                                const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing
+                                const topMargin = Math.round(8 * 1.0); // Absolute minimum top margin - just enough to prevent clipping
                                 const yOffset = scaledData
                                     .slice(0, index)
                                     .reduce((total, p) => total + calculateBarHeight(p) + ultraMinimalSpacing, topMargin);
@@ -880,7 +762,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                 const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, dynamicMonthWidth);
                                 
                                 // Position Gantt bar accounting for milestone labels above it
-                                const ganttBarY = yOffset + Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)) + milestoneHeights.above;
+                                const ganttBarY = yOffset + Math.round(8 * 1.0) + milestoneHeights.above;
                                 const milestoneY = ganttBarY + 6; // Center milestones with the 12px bar
 
                                 // Process milestones with position information
@@ -938,7 +820,6 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                                         showLabel={milestone.showLabel}
                                                         fontSize={responsiveConstants.MILESTONE_FONT_SIZE}
                                                         isMobile={responsiveConstants.TOUCH_TARGET_SIZE > 24}
-                                                        zoomLevel={responsiveConstants.ZOOM_LEVEL}
                                                         // Display3: New props for monthly grouped labels
                                                         isMonthlyGrouped={milestone.isMonthlyGrouped}
                                                         monthlyLabels={milestone.monthlyLabels}

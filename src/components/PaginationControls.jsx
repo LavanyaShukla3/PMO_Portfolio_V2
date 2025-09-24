@@ -49,7 +49,7 @@ const PaginationControls = ({
     const visiblePages = getVisiblePages();
     
     return (
-        <div className={`flex items-center justify-center space-x-2 py-4 ${className}`}>
+        <div className={`flex flex-wrap items-center justify-center gap-2 py-4 ${className}`}>
             {/* Previous button */}
             <button
                 onClick={() => onPageChange(currentPage - 1)}
@@ -90,8 +90,8 @@ const PaginationControls = ({
                 Next
             </button>
             
-            {/* Page info */}
-            <div className="ml-4 text-sm text-gray-700">
+            {/* Page info - responsive, can wrap to new line */}
+            <div className="w-full sm:w-auto mt-2 sm:mt-0 sm:ml-4 text-sm text-gray-700 text-center sm:text-left">
                 Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} items
             </div>
         </div>
