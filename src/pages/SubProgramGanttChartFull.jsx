@@ -311,7 +311,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     // Simplified milestone processing to prevent infinite loops
     const processMilestonesForProject = (milestones, startDate, monthWidth, projectEndDate = null) => {
         if (!milestones || milestones.length === 0) return [];
-        
+
         try {
             // CRITICAL FIX: Use the correct date property for grouping milestones
             const monthlyGroups = groupMilestonesByMonth(milestones, 'MILESTONE_DATE');

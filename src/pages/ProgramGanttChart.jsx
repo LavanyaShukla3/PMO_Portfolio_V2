@@ -51,7 +51,7 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
     // Display3: Group milestones by month
     const monthlyGroups = groupMilestonesByMonth(milestones);
     const maxInitialWidth = monthWidth * 8; // Allow intelligent calculation up to 8 months
-    
+
 
     const processedMilestones = [];
 
@@ -63,7 +63,7 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
         // STRICT RULES: Only vertical stacking allowed, no horizontal layout
         // RULE 1: One milestone label per month with alternating positions
         // RULE 2: Multiple milestones stacked vertically with intelligent width calculation
-        
+
         const verticalLabels = createVerticalMilestoneLabels(monthMilestones, maxInitialWidth, '14px', milestones, monthWidth);
         const horizontalLabel = ''; // Disabled to enforce strict vertical stacking
 
