@@ -39,11 +39,30 @@ const BELOW_LABEL_OFFSET = 1; // Minimal space below bar - very close to marker
 
 // Display3: Monthly grouped milestone processing logic
 // Updated: Now processes only SG3 milestones (filtered in dataService.js)
-const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, projectEndDate = null) => {
+const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, projectEndDate = null, timelineStartDate = null, timelineEndDate = null) => {
     if (!milestones?.length) return [];
 
-    // Display3: Group milestones by month
-    const monthlyGroups = groupMilestonesByMonth(milestones);
+    // CRITICAL FIX: Filter milestones to only include those within the timeline viewport
+    const timelineFilteredMilestones = milestones.filter(milestone => {
+        const milestoneDate = parseDate(milestone.date);
+        if (!milestoneDate) return false;
+
+        // Only include milestones that fall within the timeline range
+        if (timelineStartDate && timelineEndDate) {
+            const isWithinTimeline = milestoneDate >= timelineStartDate && milestoneDate <= timelineEndDate;
+            if (!isWithinTimeline) {
+                console.log('🚫 Region: Excluding milestone outside timeline:', milestone.label, milestoneDate.toISOString());
+            }
+            return isWithinTimeline;
+        }
+
+        return true; // If no timeline bounds provided, include all milestones
+    });
+
+    console.log(`🎯 Region: Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
+
+    // Display3: Group milestones by month using filtered data
+    const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones);
     const maxInitialWidth = monthWidth * 8; // Allow intelligent calculation up to 8 months
     
 
@@ -1043,7 +1062,7 @@ const RegionRoadMap = () => {
                                                 }, topMargin);
 
                                                 // Process milestones after we have projectEndDate
-                                                const milestones = processMilestonesWithPosition(project.milestones || [], startDate, responsiveConstants.MONTH_WIDTH, projectEndDate);
+                                                const milestones = processMilestonesWithPosition(project.milestones || [], startDate, responsiveConstants.MONTH_WIDTH, projectEndDate, startDate, endDate);
                                                 
                                                 // Get detailed milestone height breakdown for proper positioning
                                                 const milestoneHeights = calculateMilestoneLabelHeight(project.milestones || [], responsiveConstants.MONTH_WIDTH);

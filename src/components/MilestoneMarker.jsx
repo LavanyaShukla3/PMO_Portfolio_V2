@@ -239,7 +239,7 @@ const MilestoneMarker = ({
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            {truncateLabel(horizontalLabel, labelPosition)}
+                            {horizontalLabel}
                         </text>
                     )}
 
@@ -259,7 +259,7 @@ const MilestoneMarker = ({
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            {truncateLabel(labelLine, labelPosition)}
+                            {labelLine}
                         </text>
                     ))}
                 </>
@@ -280,7 +280,7 @@ const MilestoneMarker = ({
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            {truncateLabel(label, labelPosition) + (index < groupLabels.length - 1 ? ',' : '')}
+                            {label + (index < groupLabels.length - 1 ? ',' : '')}
                         </text>
                     ))
                 ) : (
@@ -299,7 +299,7 @@ const MilestoneMarker = ({
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            {truncateLabel(fullLabel, labelPosition)}
+                            {fullLabel}
                         </text>
                     )
                 )

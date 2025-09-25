@@ -3,7 +3,7 @@ import TimelineViewDropdown from '../components/TimelineViewDropdown';
 import TimelineAxis from '../components/TimelineAxis';
 import MilestoneMarker from '../components/MilestoneMarker';
 import PaginationControls from '../components/PaginationControls';
-import { getTimelineRange, getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calculatePosition, calculateMilestonePosition, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels, truncateLabel, createSmartMilestoneLabels } from '../utils/dateUtils';
+import { getTimelineRange, getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calculatePosition, calculateMilestonePosition, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels, truncateLabel } from '../utils/dateUtils';
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 import { differenceInDays } from 'date-fns';
@@ -64,60 +64,53 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
 
     console.log(`🎯 Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
 
-    // 🚀 NEW: Use smart milestone label stretching algorithm
-    const smartMilestones = createSmartMilestoneLabels(
-        timelineFilteredMilestones,
-        monthWidth,
-        timelineStartDate,
-        timelineEndDate,
-        '14px'
-    );
-
-    console.log(`🎨 Smart stretching results:`, smartMilestones.map(m => ({
-        label: m.originalLabel,
-        smartLabel: m.label,
-        usedFullLabel: m.usedFullLabel,
-        stretchWidth: m.stretchWidth
-    })));
-
-    // Process smart milestones and group by month for positioning logic
-    const monthlyGroups = groupMilestonesByMonth(smartMilestones);
+    // Group filtered milestones by month for positioning logic
+    const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones);
     const processedMilestones = [];
 
     // Process each monthly group with smart labels
     Object.entries(monthlyGroups).forEach(([monthKey, monthMilestones]) => {
-        // ENHANCED: Determine label position to prevent overlap between adjacent rows
-        const basePosition = getMonthlyLabelPosition(monthKey);
+        // Determine label position for this month (odd = above, even = below)
+        // Use strict monthly parity to keep calculations consistent with createVerticalMilestoneLabels
+        const labelPosition = getMonthlyLabelPosition(monthKey);
 
-        // For better overlap prevention, use a combination of month and project index
-        const shouldFlip = (projectIndex % 2 === 1) || (projectIndex % 4 === 2);
-        const labelPosition = shouldFlip ? (basePosition === 'above' ? 'below' : 'above') : basePosition;
+        // Calculate vertical, row-aware labels for this month using all in-viewport milestones
+        const maxInitialWidth = monthWidth * 8; // generous initial width (up to 8 months)
+        const verticalLabelsForMonth = createVerticalMilestoneLabels(
+            monthMilestones,
+            maxInitialWidth,
+            '14px',
+            timelineFilteredMilestones,
+            monthWidth
+        );
 
         // Process each milestone in the month
         monthMilestones.forEach((milestone, index) => {
             // STRICT RULE FIX: Only the first milestone in each month shows the labels AND the shape
             const isFirstInMonth = index === 0;
+            const milestoneDate = parseDate(milestone.date);
+            const x = calculateMilestonePosition(milestoneDate, timelineStartDate, monthWidth, projectEndDate);
 
             processedMilestones.push({
                 ...milestone,
+                x,
+                date: milestoneDate,
                 isGrouped: monthMilestones.length > 1,
                 isMonthlyGrouped: true,
                 monthKey,
                 labelPosition,
-                // Use the smart-stretched label
-                label: milestone.label, // This is already the smart label from createSmartMilestoneLabels
-                horizontalLabel: '', // Disabled to enforce strict vertical stacking
-                verticalLabels: isFirstInMonth ? [milestone.label] : [], // Use smart label in vertical stack
+                // Use vertical, row-aware labels generated above
+                label: milestone.label,
+                horizontalLabel: '', // Enforce strict vertical stacking
+                verticalLabels: isFirstInMonth ? verticalLabelsForMonth : [],
                 showLabel: true,
                 shouldWrapText: false,
                 hasAdjacentMilestones: false,
-                fullLabel: milestone.originalLabel, // Keep original for tooltips
+                fullLabel: isFirstInMonth && verticalLabelsForMonth.length > 0 ? verticalLabelsForMonth[0] : (milestone.label || ''),
                 shouldRenderShape: isFirstInMonth,
                 allMilestonesInProject: milestones,
                 currentMilestoneDate: milestone.date,
-                // NEW: Add smart stretching metadata
-                stretchWidth: milestone.stretchWidth,
-                usedFullLabel: milestone.usedFullLabel
+                // Removed smart-stretch metadata; labels are generated per-month above
             });
         });
     });

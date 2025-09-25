@@ -429,8 +429,9 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
         
         
         if (sameRowMilestones.length === 0) {
-            // No conflicts in the same row - can be very generous with width
-            effectiveMaxWidth = 8 * currentMonthWidth; // 8 months of space when no conflicts
+            // No conflicts in the same row - be very generous with width
+            // Increase cap from 8 → 24 months to avoid unnecessary truncation
+            effectiveMaxWidth = 24 * currentMonthWidth; // 24 months of space when no conflicts
         } else {
             // Find immediate neighbors in the same row
             const currentMilestoneDate = milestoneDate;
@@ -445,19 +446,23 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
             // Calculate available space between same-row neighbors
             let spanMonths;
             if (!leftNeighbor && !rightNeighbor) {
-                spanMonths = 8; // No neighbors in same row, very generous space
+                // Redundant with sameRowMilestones.length === 0, but keep safe default
+                spanMonths = 24; // Very generous space
             } else if (!leftNeighbor) {
+                // Only right neighbor exists: allow approximately double the right span
                 const rightSpan = (rightNeighbor.parsedDate - currentMilestoneDate) / (1000 * 60 * 60 * 24 * 30.44);
-                spanMonths = Math.min(rightSpan, 8); // Up to 8 months to the right when no left neighbor
+                spanMonths = Math.min(Math.max(2, rightSpan * 2), 24);
             } else if (!rightNeighbor) {
+                // Only left neighbor exists: allow approximately double the left span
                 const leftSpan = (currentMilestoneDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
-                spanMonths = Math.min(leftSpan, 8); // Up to 8 months to the left when no right neighbor
+                spanMonths = Math.min(Math.max(2, leftSpan * 2), 24);
             } else {
+                // Both neighbors exist: use 90% of total span between them
                 const totalSpan = (rightNeighbor.parsedDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
-                spanMonths = Math.min(totalSpan * 0.8, 8); // 80% of space between neighbors, max 8 months
+                spanMonths = Math.min(Math.max(2, totalSpan * 0.9), 24);
             }
-            
-            effectiveMaxWidth = Math.max(2, spanMonths) * currentMonthWidth;
+
+            effectiveMaxWidth = spanMonths * currentMonthWidth;
         }
     }
     
@@ -603,14 +608,22 @@ export const createSmartMilestoneLabels = (milestones, monthWidth, timelineStart
     const processedMilestones = milestonesWithPositions.map((currentMilestone, index) => {
         // Find the stretch boundaries
         const leftBoundary = index > 0 ? milestonesWithPositions[index - 1].x : 0;
-        const rightBoundary = index < milestonesWithPositions.length - 1
-            ? milestonesWithPositions[index + 1].x
-            : calculateMilestonePosition(timelineEndDate, timelineStartDate, monthWidth);
+
+        // For right boundary, be more generous when there's no next milestone
+        let rightBoundary;
+        if (index < milestonesWithPositions.length - 1) {
+            // There is a next milestone - use its position as boundary
+            rightBoundary = milestonesWithPositions[index + 1].x;
+        } else {
+            // No next milestone - allow stretching to the actual timeline end
+            // Calculate the position of the timeline end date
+            rightBoundary = calculateMilestonePosition(timelineEndDate, timelineStartDate, monthWidth);
+        }
 
         // Calculate available stretch window (leave some margin for readability)
         const margin = 10; // 10px margin between adjacent milestone labels
-        const availableLeftSpace = currentMilestone.x - leftBoundary - margin;
-        const availableRightSpace = rightBoundary - currentMilestone.x - margin;
+        const availableLeftSpace = Math.max(0, currentMilestone.x - leftBoundary - margin);
+        const availableRightSpace = Math.max(0, rightBoundary - currentMilestone.x - margin);
 
         // Total available width for the label (can extend in both directions from milestone marker)
         const maxLabelWidth = availableLeftSpace + availableRightSpace;

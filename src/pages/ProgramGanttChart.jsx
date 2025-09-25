@@ -45,11 +45,30 @@ const statusColors = {
 
 // Display3: Monthly grouped milestone processing logic
 // Updated: Now processes only SG3 milestones (filtered in dataService.js)
-const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, projectEndDate = null) => {
+const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, projectEndDate = null, timelineStartDate = null, timelineEndDate = null) => {
     if (!milestones?.length) return [];
 
-    // Display3: Group milestones by month
-    const monthlyGroups = groupMilestonesByMonth(milestones);
+    // CRITICAL FIX: Filter milestones to only include those within the timeline viewport
+    const timelineFilteredMilestones = milestones.filter(milestone => {
+        const milestoneDate = parseDate(milestone.date);
+        if (!milestoneDate) return false;
+
+        // Only include milestones that fall within the timeline range
+        if (timelineStartDate && timelineEndDate) {
+            const isWithinTimeline = milestoneDate >= timelineStartDate && milestoneDate <= timelineEndDate;
+            if (!isWithinTimeline) {
+                console.log('🚫 Program: Excluding milestone outside timeline:', milestone.label, milestoneDate.toISOString());
+            }
+            return isWithinTimeline;
+        }
+
+        return true; // If no timeline bounds provided, include all milestones
+    });
+
+    console.log(`🎯 Program: Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
+
+    // Display3: Group milestones by month using filtered milestones
+    const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones);
     const maxInitialWidth = monthWidth * 8; // Allow intelligent calculation up to 8 months
 
 
@@ -64,7 +83,7 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
         // RULE 1: One milestone label per month with alternating positions
         // RULE 2: Multiple milestones stacked vertically with intelligent width calculation
 
-        const verticalLabels = createVerticalMilestoneLabels(monthMilestones, maxInitialWidth, '14px', milestones, monthWidth);
+        const verticalLabels = createVerticalMilestoneLabels(monthMilestones, maxInitialWidth, '14px', timelineFilteredMilestones, monthWidth);
         const horizontalLabel = ''; // Disabled to enforce strict vertical stacking
 
 
@@ -414,7 +433,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         if (!milestones?.length) return { total: 0, above: 0, below: 0 };
 
         // Process milestones to get their positions and grouping info
-        const processedMilestones = processMilestonesWithPosition(milestones, startDate, monthWidth);
+        const processedMilestones = processMilestonesWithPosition(milestones, startDate, monthWidth, null, startDate, endDate);
 
         let maxAboveHeight = 0;
         let maxBelowHeight = 0;
@@ -766,7 +785,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                 const milestoneY = ganttBarY + 6; // Center milestones with the 12px bar
 
                                 // Process milestones with position information
-                                const milestones = processMilestonesWithPosition(project.milestones, startDate, dynamicMonthWidth, projectEndDate);
+                                const milestones = processMilestonesWithPosition(project.milestones, startDate, dynamicMonthWidth, projectEndDate, startDate, endDate);
 
                                 const isProgram = project.isProgram;
                                 const isProgramHeader = project.isProgramHeader;

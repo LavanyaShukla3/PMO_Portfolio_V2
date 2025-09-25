@@ -309,12 +309,31 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     // responsiveConstants already declared as state above
 
     // Simplified milestone processing to prevent infinite loops
-    const processMilestonesForProject = (milestones, startDate, monthWidth, projectEndDate = null) => {
+    const processMilestonesForProject = (milestones, startDate, monthWidth, projectEndDate = null, timelineStartDate = null, timelineEndDate = null) => {
         if (!milestones || milestones.length === 0) return [];
 
         try {
-            // CRITICAL FIX: Use the correct date property for grouping milestones
-            const monthlyGroups = groupMilestonesByMonth(milestones, 'MILESTONE_DATE');
+            // CRITICAL FIX: Filter milestones to only include those within the timeline viewport
+            const timelineFilteredMilestones = milestones.filter(milestone => {
+                const milestoneDate = parseDate(milestone.MILESTONE_DATE);
+                if (!milestoneDate) return false;
+
+                // Only include milestones that fall within the timeline range
+                if (timelineStartDate && timelineEndDate) {
+                    const isWithinTimeline = milestoneDate >= timelineStartDate && milestoneDate <= timelineEndDate;
+                    if (!isWithinTimeline) {
+                        console.log('🚫 SubProgram: Excluding milestone outside timeline:', milestone.MILESTONE_NAME, milestoneDate.toISOString());
+                    }
+                    return isWithinTimeline;
+                }
+
+                return true; // If no timeline bounds provided, include all milestones
+            });
+
+            console.log(`🎯 SubProgram: Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
+
+            // CRITICAL FIX: Use the correct date property for grouping milestones with filtered data
+            const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones, 'MILESTONE_DATE');
             const processedMilestones = [];
 
             // Step 2: Process each monthly group to handle overlaps.
@@ -1184,7 +1203,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                         p.project.milestones || [], // Fix: Use milestones from project object
                                         startDate,
                                         constants.MONTH_WIDTH,
-                                        prevProjectEndDate
+                                        prevProjectEndDate,
+                                        startDate,
+                                        endDate
                                     );
                                     
                                     return total + calculateBarHeight(p, prevProcessedMilestones) + ultraMinimalSpacing;
@@ -1287,7 +1308,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                     p.project.milestones || [],
                                     startDate,
                                     constants.MONTH_WIDTH,
-                                    projectEndDate
+                                    projectEndDate,
+                                    startDate,
+                                    endDate
                                 );
                                 return total + calculateBarHeight(p, processedMilestones) + ultraMinimalSpacing;
                             }, topMargin) + bottomPadding;
@@ -1312,7 +1335,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                             p.project.milestones || [], // Fix: Use milestones from project object
                                             startDate,
                                             constants.MONTH_WIDTH,
-                                            projectEndDate
+                                            projectEndDate,
+                                            startDate,
+                                            endDate
                                         );
                                         
                                         return total + calculateBarHeight(p, processedMilestones) + ultraMinimalSpacing;
@@ -1344,7 +1369,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                         row.project.milestones || [], // Fix: Use milestones from project object
                                         startDate,
                                         constants.MONTH_WIDTH,
-                                        projectEndDate
+                                        projectEndDate,
+                                        startDate,
+                                        endDate
                                     );
 
                                     // Calculate proper Y offset using Program page's ultra-compact logic
@@ -1366,7 +1393,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                 p.project.milestones || [], // Fix: Use milestones from project object
                                                 startDate,
                                                 constants.MONTH_WIDTH,
-                                                prevProjectEndDate
+                                                prevProjectEndDate,
+                                                startDate,
+                                                endDate
                                             );
                                             
                                             return total + calculateBarHeight(p, prevProcessedMilestones) + ultraMinimalSpacing;
