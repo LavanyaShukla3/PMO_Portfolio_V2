@@ -29,11 +29,13 @@ const getResponsiveConstants = () => {
 };
 
 
-// Milestone label spacing constants (match PortfolioGanttChart)
+// Milestone label spacing constants (align with MilestoneMarker vertical label anchors)
 const LINE_HEIGHT = 12;
-const LABEL_PADDING = 1; // Minimal padding for labels
-const ABOVE_LABEL_OFFSET = 1; // Minimal space above bar - very close to marker
-const BELOW_LABEL_OFFSET = 1; // Minimal space below bar - very close to marker
+const LABEL_PADDING = 2;
+// MilestoneMarker uses ~15px above and ~22px below from the bar center to first baseline
+// plus diamond centering; budget slightly more to be safe
+const ABOVE_LABEL_OFFSET = 18;
+const BELOW_LABEL_OFFSET = 25;
 
 // Note: truncateLabel and milestone constants are now imported from dateUtils.js
 
@@ -77,7 +79,13 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
         // RULE 1: One milestone label per month with alternating positions
         // RULE 2: Multiple milestones stacked vertically with intelligent width calculation
         
-        const verticalLabels = createVerticalMilestoneLabels(monthMilestones, maxInitialWidth, '14px', milestones, monthWidth);
+        const verticalLabels = createVerticalMilestoneLabels(
+            monthMilestones,
+            maxInitialWidth,
+            '14px',
+            timelineFilteredMilestones,
+            monthWidth
+        );
         const horizontalLabel = ''; // Disabled to enforce strict vertical stacking
 
 
@@ -574,44 +582,54 @@ const RegionRoadMap = () => {
                 return { total: 0, above: 0, below: 0 };
             }
 
-            const monthlyGroups = groupMilestonesByMonth(milestones);
+            // Use the same processing as the renderer so heights match exactly
+            const processedMilestones = processMilestonesWithPosition(
+                milestones,
+                startDate,
+                monthWidth,
+                null,
+                startDate,
+                endDate
+            );
+
             let maxAboveHeight = 0;
             let maxBelowHeight = 0;
+            let hasAnyLabels = false;
 
-            Object.entries(monthlyGroups).forEach(([monthKey, monthMilestones]) => {
-                const labelPosition = getMonthlyLabelPosition(monthKey);
-                const stackedLabels = createVerticalMilestoneLabels(
-                    monthMilestones, 
-                    monthWidth * 8,
-                    '14px',
-                    milestones,
-                    monthWidth
-                );
+            processedMilestones.forEach((milestone) => {
+                if (milestone.isMonthlyGrouped) {
+                    const nonEmptyLabels = (milestone.verticalLabels || []).filter(l => l && l.trim());
+                    const labelHeight = nonEmptyLabels.length * LINE_HEIGHT;
+                    if (nonEmptyLabels.length > 0) hasAnyLabels = true;
 
-                // Add null check and ensure stackedLabels is a string
-                if (stackedLabels && typeof stackedLabels === 'string') {
-                    const labelHeight = stackedLabels.split('\n').length * LINE_HEIGHT + LABEL_PADDING;
-
-                    if (labelPosition === 'above') {
-                        maxAboveHeight = Math.max(maxAboveHeight, labelHeight + ABOVE_LABEL_OFFSET);
-                    } else {
-                        maxBelowHeight = Math.max(maxBelowHeight, labelHeight + BELOW_LABEL_OFFSET);
+                    if (labelHeight > 0) {
+                        if (milestone.labelPosition === 'above') {
+                            maxAboveHeight = Math.max(maxAboveHeight, labelHeight + ABOVE_LABEL_OFFSET);
+                        } else {
+                            maxBelowHeight = Math.max(maxBelowHeight, labelHeight + BELOW_LABEL_OFFSET);
+                        }
                     }
-                } else {
-                    // Fallback if stackedLabels is not a string
-                    const fallbackHeight = 20; // Default height for one line
-                    if (labelPosition === 'above') {
-                        maxAboveHeight = Math.max(maxAboveHeight, fallbackHeight + ABOVE_LABEL_OFFSET);
+                } else if (milestone.isGrouped && milestone.groupLabels?.length > 0) {
+                    const nonEmptyGroupLabels = milestone.groupLabels.filter(l => l && l.trim());
+                    if (nonEmptyGroupLabels.length > 0) {
+                        const groupHeight = nonEmptyGroupLabels.length * LINE_HEIGHT;
+                        maxBelowHeight = Math.max(maxBelowHeight, groupHeight + LABEL_PADDING);
+                        hasAnyLabels = true;
+                    }
+                } else if (milestone.label && milestone.label.trim()) {
+                    hasAnyLabels = true;
+                    if (milestone.labelPosition === 'above') {
+                        maxAboveHeight = Math.max(maxAboveHeight, ABOVE_LABEL_OFFSET);
                     } else {
-                        maxBelowHeight = Math.max(maxBelowHeight, fallbackHeight + BELOW_LABEL_OFFSET);
+                        maxBelowHeight = Math.max(maxBelowHeight, BELOW_LABEL_OFFSET);
                     }
                 }
             });
 
             return {
-                total: maxAboveHeight + maxBelowHeight,
-                above: maxAboveHeight,
-                below: maxBelowHeight
+                total: hasAnyLabels ? (maxAboveHeight + maxBelowHeight) : 0,
+                above: hasAnyLabels ? maxAboveHeight : 0,
+                below: hasAnyLabels ? maxBelowHeight : 0
             };
         } catch (error) {
             console.warn('Error calculating milestone label height:', error);
@@ -1033,12 +1051,12 @@ const RegionRoadMap = () => {
                                         >
                                             {/* iv. Simple line-based swimlanes for RegionGanttChart */}
                                             {/* Vertical month separator lines */}
-                                            {Array.from({ length: Math.ceil(totalWidth / responsiveConstants.MONTH_WIDTH) }, (_, i) => (
+                                            {Array.from({ length: Math.ceil(totalWidth / monthWidth) }, (_, i) => (
                                                 <line
                                                     key={`month-line-${i}`}
-                                                    x1={i * responsiveConstants.MONTH_WIDTH}
+                                                    x1={i * monthWidth}
                                                     y1="0"
-                                                    x2={i * responsiveConstants.MONTH_WIDTH}
+                                                    x2={i * monthWidth}
                                                     y2={getTotalHeight()}
                                                     stroke="rgba(0,0,0,0.1)"
                                                     strokeWidth="1"
@@ -1062,10 +1080,10 @@ const RegionRoadMap = () => {
                                                 }, topMargin);
 
                                                 // Process milestones after we have projectEndDate
-                                                const milestones = processMilestonesWithPosition(project.milestones || [], startDate, responsiveConstants.MONTH_WIDTH, projectEndDate, startDate, endDate);
+                                                const milestones = processMilestonesWithPosition(project.milestones || [], startDate, monthWidth, projectEndDate, startDate, endDate);
                                                 
                                                 // Get detailed milestone height breakdown for proper positioning
-                                                const milestoneHeights = calculateMilestoneLabelHeight(project.milestones || [], responsiveConstants.MONTH_WIDTH);
+                                                const milestoneHeights = calculateMilestoneLabelHeight(project.milestones || [], monthWidth);
                                                 
                                                 // Check if this project has a valid bar (both start and end dates within timeline)
                                                 const hasValidBar = projectStartDate && projectEndDate && 
@@ -1145,8 +1163,8 @@ const RegionRoadMap = () => {
                                                                     
                                                                     if (!phaseStartDate || !phaseEndDate) return null;
                                                                     
-                                                                    const x = calculatePosition(phaseStartDate, startDate, responsiveConstants.MONTH_WIDTH);
-                                                                    const width = calculatePosition(phaseEndDate, startDate, responsiveConstants.MONTH_WIDTH) - x;
+                                                                    const x = calculatePosition(phaseStartDate, startDate, monthWidth);
+                                                                    const width = calculatePosition(phaseEndDate, startDate, monthWidth) - x;
                                                                     
                                                                     if (width <= 0) return null;
                                                                     
@@ -1188,8 +1206,8 @@ const RegionRoadMap = () => {
                                                                 }
                                                                 
                                                                 // Render single project bar for unphased projects
-                                                                const startX = calculatePosition(projectStartDate, startDate, responsiveConstants.MONTH_WIDTH);
-                                                                const endX = calculatePosition(projectEndDate, startDate, responsiveConstants.MONTH_WIDTH);
+                                                                const startX = calculatePosition(projectStartDate, startDate, monthWidth);
+                                                                const endX = calculatePosition(projectEndDate, startDate, monthWidth);
                                                                 const width = endX - startX;
                                                                 
                                                                 // Debug positions for problematic projects
