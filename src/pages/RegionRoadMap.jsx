@@ -114,8 +114,7 @@ const RegionRoadMap = () => {
     });
 
     const [availableMarkets, setAvailableMarkets] = useState([]);
-    const [zoomLevel, setZoomLevel] = useState(1.0);
-    const [responsiveConstants, setResponsiveConstants] = useState(getResponsiveConstants(1.0));
+    const [responsiveConstants, setResponsiveConstants] = useState(getResponsiveConstants());
     const [loading, setLoading] = useState(false); // Will use cached data
     const [error, setError] = useState(null);
     
@@ -439,10 +438,6 @@ const RegionRoadMap = () => {
         console.log('✅ PAGINATION: setCurrentPage called with:', newPage);
     }, []); // Empty dependencies to ensure stable reference
 
-    // Update responsive constants when zoom level changes
-    useEffect(() => {
-        setResponsiveConstants(getResponsiveConstants(zoomLevel));
-    }, [zoomLevel]);
 
     // Use the new viewport-based filtering logic
     const isProjectWithinViewport = useCallback((project) => {
@@ -503,10 +498,6 @@ const RegionRoadMap = () => {
         }
     };
 
-    // Update responsive constants when zoom level changes
-    useEffect(() => {
-        setResponsiveConstants(getResponsiveConstants(zoomLevel));
-    }, [zoomLevel]);
 
     // Phase colors mapping
     const phaseColors = {
@@ -551,36 +542,10 @@ const RegionRoadMap = () => {
         setCurrentPage(1);
     }, []); // No dependencies needed since we're only using setters
 
-    // Zoom handlers
-    const handleZoomIn = () => {
-        const zoomLevels = Object.keys(ZOOM_LEVELS).map(Number).sort((a, b) => a - b);
-        const currentIndex = zoomLevels.indexOf(zoomLevel);
-        if (currentIndex < zoomLevels.length - 1) {
-            setZoomLevel(zoomLevels[currentIndex + 1]);
-        }
-    };
 
-    const handleZoomOut = () => {
-        const zoomLevels = Object.keys(ZOOM_LEVELS).map(Number).sort((a, b) => a - b);
-        const currentIndex = zoomLevels.indexOf(zoomLevel);
-        if (currentIndex > 0) {
-            setZoomLevel(zoomLevels[currentIndex - 1]);
-        }
-    };
-
-    const handleZoomReset = () => {
-        setZoomLevel(1.0);
-    };
-
-    // Apply project scaling based on zoom level
+    // Get filtered data without scaling
     const getScaledFilteredData = () => {
-        const projectScale = responsiveConstants.PROJECT_SCALE;
-        if (projectScale >= 1.0) {
-            return timelineFilteredData;
-        } else {
-            const targetCount = Math.max(1, Math.round(timelineFilteredData.length * projectScale));
-            return timelineFilteredData.slice(0, targetCount);
-        }
+        return timelineFilteredData;
     };
 
     // Calculate height needed for milestone labels to prevent overlap with bars
@@ -661,7 +626,7 @@ const RegionRoadMap = () => {
         const estimatedNameWidth = responsiveConstants.LABEL_WIDTH - 16; // Account for padding
         const maxCharsPerLine = Math.max(30, estimatedNameWidth / 7); // More efficient text wrapping
         const textLines = Math.ceil(projectName.length / maxCharsPerLine);
-        const lineHeight = Math.round(12 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Compact line height
+        const lineHeight = Math.round(12 * 1.0); // Compact line height
         const nameHeight = Math.max(16, textLines * lineHeight); // Just enough for text
         
         // STEP 4: Content-driven height calculation with proper milestone spacing
@@ -675,15 +640,15 @@ const RegionRoadMap = () => {
         const contentDrivenHeight = Math.max(leftPanelNeeds, rightPanelNeeds);
         
         // STEP 5: Ensure minimum usability
-        const minimumHeight = Math.round(28 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Reduced minimum
+        const minimumHeight = Math.round(28 * 1.0); // Reduced minimum
         
         return Math.max(minimumHeight, contentDrivenHeight);
     };
 
     // Unified total height for left panel and right chart to avoid scaling/misalignment
     const getTotalHeight = () => {
-        const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0));
-        const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0));
+        const ultraMinimalSpacing = Math.round(1 * 1.0);
+        const topMargin = Math.round(8 * 1.0);
         return getScaledFilteredData().reduce((total, project) => {
             const projectStartDate = parseDate(project.startDate, `${project.name} - Project Start`);
             const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
@@ -809,35 +774,6 @@ const RegionRoadMap = () => {
                                             }}
                                         >
                                             <span className="truncate">Region Projects</span>
-                                            {/* Zoom Controls */}
-                                            <div className="flex items-center space-x-1 ml-2">
-                                                <button
-                                                    onClick={handleZoomOut}
-                                                    disabled={zoomLevel <= 0.5}
-                                                    className="w-8 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
-                                                    title="Zoom Out"
-                                                >
-                                                    −
-                                                </button>
-                                                <span className="text-xs text-gray-600 text-center font-medium min-w-[35px]">
-                                                    {Math.round(zoomLevel * 100)}%
-                                                </span>
-                                                <button
-                                                    onClick={handleZoomIn}
-                                                    disabled={zoomLevel >= 1.5}
-                                                    className="w-8 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
-                                                    title="Zoom In"
-                                                >
-                                                    +
-                                                </button>
-                                                <button
-                                                    onClick={handleZoomReset}
-                                                    className="text-xs px-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                                                    title="Reset to 100%"
-                                                >
-                                                    ↺
-                                                </button>
-                                            </div>
                                         </div>
                                     </div>
 
@@ -891,35 +827,6 @@ const RegionRoadMap = () => {
                                             }}
                                         >
                                             <span className="truncate">Region Projects</span>
-                                            {/* Zoom Controls */}
-                                            <div className="flex items-center space-x-1 ml-2">
-                                                <button
-                                                    onClick={handleZoomOut}
-                                                    disabled={zoomLevel <= 0.5}
-                                                    className="w-8 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
-                                                    title="Zoom Out"
-                                                >
-                                                    −
-                                                </button>
-                                                <span className="text-xs text-gray-600 text-center font-medium min-w-[35px]">
-                                                    {Math.round(zoomLevel * 100)}%
-                                                </span>
-                                                <button
-                                                    onClick={handleZoomIn}
-                                                    disabled={zoomLevel >= 1.5}
-                                                    className="w-8 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-300 rounded text-xs font-bold transition-colors"
-                                                    title="Zoom In"
-                                                >
-                                                    +
-                                                </button>
-                                                <button
-                                                    onClick={handleZoomReset}
-                                                    className="text-xs px-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                                                    title="Reset to 100%"
-                                                >
-                                                    ↺
-                                                </button>
-                                            </div>
                                         </div>
                                     </div>
 
@@ -1043,8 +950,8 @@ const RegionRoadMap = () => {
                                                 });
                                             }
                                             const projectRowHeight = calculateRowHeight(project.name, project.milestones, projectStartDate, projectEndDate, startDate, endDate);
-                                            const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                                            const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Absolute minimum top margin - just enough to prevent clipping
+                                            const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing
+                                            const topMargin = Math.round(8 * 1.0); // Absolute minimum top margin - just enough to prevent clipping
                                             const yOffset = getScaledFilteredData().slice(0, index).reduce((total, p) => {
                                                 const pStartDate = parseDate(p.startDate, `${p.name} - Project Start`);
                                                 const pEndDate = parseDate(p.endDate, `${p.name} - Project End`);
@@ -1106,7 +1013,7 @@ const RegionRoadMap = () => {
                                             height={getTotalHeight()}
                                         >
                                             {/* iv. Simple line-based swimlanes for RegionGanttChart */}
-                                            {/* Vertical month separator lines - responsive to zoom */}
+                                            {/* Vertical month separator lines */}
                                             {Array.from({ length: Math.ceil(totalWidth / responsiveConstants.MONTH_WIDTH) }, (_, i) => (
                                                 <line
                                                     key={`month-line-${i}`}
@@ -1124,8 +1031,8 @@ const RegionRoadMap = () => {
                                                 const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
                                                 
                                                 const projectRowHeight = calculateRowHeight(project.name, project.milestones, projectStartDate, projectEndDate, startDate, endDate);
-                                                const ultraMinimalSpacing = Math.round(1 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Ultra-minimal spacing
-                                                const topMargin = Math.round(8 * (responsiveConstants.ZOOM_LEVEL || 1.0)); // Absolute minimum top margin - just enough to prevent clipping
+                                                const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing
+                                                const topMargin = Math.round(8 * 1.0); // Absolute minimum top margin - just enough to prevent clipping
                                                 
                                                 // Calculate row Y position with ultra-minimal spacing
                                                 const yOffset = getScaledFilteredData().slice(0, index).reduce((total, p) => {
@@ -1246,7 +1153,6 @@ const RegionRoadMap = () => {
                                                                             touchTargetSize={responsiveConstants.TOUCH_TARGET_SIZE}
                                                                             fontSize={responsiveConstants.FONT_SIZE}
                                                                             isMobile={false}
-                                                                            zoomLevel={zoomLevel}
                                                                         />
                                                                     );
                                                                 });
@@ -1318,7 +1224,6 @@ const RegionRoadMap = () => {
                                                                 hasAdjacentMilestones={milestone.hasAdjacentMilestones}
                                                                 fontSize={responsiveConstants.MILESTONE_FONT_SIZE}
                                                                 isMobile={responsiveConstants.TOUCH_TARGET_SIZE > 24}
-                                                                zoomLevel={responsiveConstants.ZOOM_LEVEL}
                                                                 // Display3: New props for monthly grouped labels
                                                                 isMonthlyGrouped={milestone.isMonthlyGrouped}
                                                                 monthlyLabels={milestone.monthlyLabels}
