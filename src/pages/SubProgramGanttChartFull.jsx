@@ -1222,7 +1222,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                         ref={headerScrollRef}
                         className="bg-gray-100 border-b border-gray-200 overflow-x-auto overflow-y-hidden"
                         style={{
-                            width: `${monthWidth * constants.VISIBLE_MONTHS}px`,
+                            width: `${timelineWidth}px`,
                             maxWidth: `calc(100vw - ${constants.LABEL_WIDTH}px)`,
                             minHeight: '60px',
                             paddingTop: '10px'
@@ -1234,6 +1234,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                             endDate={endDate}
                             monthWidth={monthWidth}
                             fontSize={constants.FONT_SIZE}
+                            totalWidth={`${timelineWidth}px`}
                         />
                     </div>
 
