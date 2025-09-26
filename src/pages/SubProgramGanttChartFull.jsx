@@ -1322,15 +1322,15 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     {/* Timeline Header */}
                     <div 
                         ref={headerScrollRef}
-                        className="bg-gray-100 border-b border-gray-200 overflow-x-auto overflow-y-hidden"
-                        style={{ height: '60px' }}
-                        onScroll={handleHeaderScroll}
+                        className="bg-gray-100 border-b border-gray-200 overflow-hidden"
+                        style={{ height: '40px' }}
                     >
                         <TimelineAxis
                             startDate={startDate}
                             endDate={endDate}
                             monthWidth={monthWidth}
-                            height={60}
+                            height={40}
+                            totalWidth="100%"
                             fontSize={constants.FONT_SIZE}
                         />
                     </div>
