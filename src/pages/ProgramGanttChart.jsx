@@ -179,7 +179,6 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-
     // Use cached data and filter by portfolio
     useEffect(() => {
         if (programData && programData.data) {
@@ -188,11 +187,34 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
             // Filter programs by selected portfolio
             let filteredData = programData.data;
             if (selectedPortfolioId) {
-                filteredData = programData.data.filter(program => 
-                    program.portfolioId === selectedPortfolioId || 
-                    program.portfolio_id === selectedPortfolioId ||
-                    program.parent_program_id === selectedPortfolioId
-                );
+                console.log('🔍 PROGRAM FILTERING DEBUG:', {
+                    selectedPortfolioId,
+                    totalPrograms: programData.data.length,
+                    sampleProgram: programData.data[0],
+                    programFields: programData.data[0] ? Object.keys(programData.data[0]) : 'No programs'
+                });
+                
+                filteredData = programData.data.filter(program => {
+                    // Programs have COE_ROADMAP_PARENT_ID that should match Portfolio's CHILD_ID
+                    const matches = program.COE_ROADMAP_PARENT_ID === selectedPortfolioId ||
+                                   program.parentId === selectedPortfolioId ||
+                                   program.portfolioId === selectedPortfolioId ||
+                                   program.portfolio_id === selectedPortfolioId;
+                    
+                    if (matches) {
+                        console.log('✅ Program matches portfolio:', {
+                            programName: program.name,
+                            programId: program.id,
+                            COE_ROADMAP_PARENT_ID: program.COE_ROADMAP_PARENT_ID,
+                            parentId: program.parentId,
+                            selectedPortfolioId
+                        });
+                    }
+                    
+                    return matches;
+                });
+                
+                console.log(`🎯 Program filtering result: ${filteredData.length} programs found for portfolio ${selectedPortfolioId}`);
             }
             
             setAllData(filteredData);

@@ -127,7 +127,8 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     
     // Get cached data and state
     const { 
-        portfolioData, 
+        portfolioData,
+        programData,
         isLoading: cacheLoading, 
         preserveViewState, 
         getViewState 
@@ -237,20 +238,114 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         }
     });
     
-    // Add parent names to data items - use the COE_ROADMAP_PARENT_NAME that comes from backend
+    // Add parent names and isDrillable logic to data items
     const dataWithParentNames = (allData || []).map(item => ({
         ...item,
         // Use the COE_ROADMAP_PARENT_NAME field that already exists in the data
         parentName: item.COE_ROADMAP_PARENT_NAME || 
                    (item.COE_ROADMAP_PARENT_ID ? 
                     portfolioIdToNameMap.get(item.COE_ROADMAP_PARENT_ID) || item.COE_ROADMAP_PARENT_ID 
-                    : 'Root')
+                    : 'Root'),
+        // Initialize isDrillable as false - will be set in second pass
+        isDrillable: false
     }));
+
+    // Build set of Program parent IDs from globally cached programData
+    // programData might be an object with a 'data' property or direct array
+    const programParentIds = React.useMemo(() => {
+        const ids = new Set();
+        
+        // Handle different programData structures
+        let programArray = null;
+        if (Array.isArray(programData)) {
+            programArray = programData;
+        } else if (programData && Array.isArray(programData.data)) {
+            programArray = programData.data;
+        } else if (programData && programData.projects && Array.isArray(programData.projects)) {
+            programArray = programData.projects;
+        }
+        
+        console.log('🔍 Program data structure analysis:', {
+            programDataType: typeof programData,
+            isArray: Array.isArray(programData),
+            hasDataProperty: programData?.data ? 'yes' : 'no',
+            hasProjectsProperty: programData?.projects ? 'yes' : 'no',
+            programArrayLength: programArray?.length || 0,
+            programDataKeys: programData ? Object.keys(programData) : 'null'
+        });
+        
+        if (programArray && programArray.length > 0) {
+            programArray.forEach(item => {
+                const isProgramItem = item.isProgram || item.COE_ROADMAP_TYPE === 'Program';
+                const parent = item.parentId || item.COE_ROADMAP_PARENT_ID;
+                if (isProgramItem && parent) {
+                    ids.add(parent);
+                }
+            });
+            
+            console.log('🎯 Found program parent IDs:', Array.from(ids));
+        }
+        
+        return ids;
+    }, [programData]);
+
+    // Pass 2: Mark Portfolios as drillable if they have Program children
+    const dataWithDrillableLogic = dataWithParentNames.map(item => ({
+        ...item,
+        isDrillable: item.COE_ROADMAP_TYPE === 'Portfolio' && 
+                    item.CHILD_ID && 
+                    programParentIds.has(item.CHILD_ID)
+    }));
+
+    console.log('🎯 DRILL-THROUGH DEBUG - Raw Data Analysis:', {
+        portfolioDataExists: !!portfolioData,
+        portfolioDataLength: portfolioData?.data?.length || 0,
+        programDataExists: !!programData,
+        programDataLength: Array.isArray(programData) ? programData.length : 'Not array',
+        programDataType: typeof programData,
+        samplePortfolioItem: allData?.[0] || 'No data',
+        sampleProgramItem: Array.isArray(programData) ? programData[0] : 'No program data'
+    });
+
+    console.log('🎯 DRILL-THROUGH DEBUG - Program Parent IDs:', {
+        programParentIdsSize: programParentIds.size,
+        programParentIds: Array.from(programParentIds),
+        programDataSample: Array.isArray(programData) ? programData.slice(0, 3).map(item => ({
+            id: item.id,
+            parentId: item.parentId,
+            COE_ROADMAP_PARENT_ID: item.COE_ROADMAP_PARENT_ID,
+            isProgram: item.isProgram,
+            COE_ROADMAP_TYPE: item.COE_ROADMAP_TYPE
+        })) : 'No program data'
+    });
+
+    console.log('🎯 DRILL-THROUGH DEBUG - Portfolio Analysis:', {
+        totalPortfolioItems: dataWithParentNames.length,
+        portfolioTypeItems: dataWithParentNames.filter(item => item.COE_ROADMAP_TYPE === 'Portfolio').length,
+        portfolioWithChildId: dataWithParentNames.filter(item => item.COE_ROADMAP_TYPE === 'Portfolio' && item.CHILD_ID).length,
+        samplePortfolioItems: dataWithParentNames.filter(item => item.COE_ROADMAP_TYPE === 'Portfolio').slice(0, 3).map(item => ({
+            name: item.name,
+            CHILD_ID: item.CHILD_ID,
+            COE_ROADMAP_TYPE: item.COE_ROADMAP_TYPE,
+            isDrillable: item.COE_ROADMAP_TYPE === 'Portfolio' && item.CHILD_ID && programParentIds.has(item.CHILD_ID)
+        }))
+    });
+
+    console.log('🎯 DRILL-THROUGH DEBUG - Final Results:', {
+        totalItems: dataWithParentNames.length,
+        drillableCount: dataWithDrillableLogic.filter(item => item.isDrillable).length,
+        drillablePortfolios: dataWithDrillableLogic.filter(item => item.isDrillable).map(item => ({
+            id: item.CHILD_ID,
+            name: item.name,
+            type: item.COE_ROADMAP_TYPE,
+            isDrillable: item.isDrillable
+        }))
+    });
 
     // Calculate filtered data based on selection
     const filteredData = selectedParent === 'All'
-        ? dataWithParentNames
-        : dataWithParentNames.filter(item => item.parentName === selectedParent);
+        ? dataWithDrillableLogic
+        : dataWithDrillableLogic.filter(item => item.parentName === selectedParent);
 
     // Apply timeline filtering BEFORE pagination (like Program page)
     const timelineFilteredData = filteredData.filter(project =>
@@ -266,7 +361,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     };
 
     // Extract unique parent names for dropdown
-    const parentNames = ['All', ...Array.from(new Set(dataWithParentNames.map(item => item.parentName).filter(name => name && name !== 'Root')))];
+    const parentNames = ['All', ...Array.from(new Set(dataWithDrillableLogic.map(item => item.parentName).filter(name => name && name !== 'Root')))];
     
     // Debug logging for dropdown  
     if (portfolioIdToNameMap.size > 0) {
@@ -619,7 +714,8 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                                     }}
                                     onClick={() => {
                                         if (project.isDrillable && onDrillToProgram) {
-                                            onDrillToProgram(project.id, project.name);
+                                            // Pass the Portfolio's CHILD_ID which is what Programs reference as their parent
+                                            onDrillToProgram(project.CHILD_ID, project.name);
                                         }
                                     }}
                                 >
