@@ -405,31 +405,14 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         if (subProgramData && subProgramData.projects) {
             console.log('✅ Using cached subprogram data:', subProgramData);
             
-            // Extract unique program names from cached data
-            const uniquePrograms = new Set();
-            console.log('🔍 Cached data - Sample projects for program name extraction:', subProgramData.projects.slice(0, 3));
-            
-            subProgramData.projects.forEach(project => {
-                // Check all possible program name properties
-                const possibleProgramNames = [
-                    project.COE_ROADMAP_PARENT_NAME,
-                    project.INV_FUNCTION,
-                    project.PARENT_NAME,
-                    project.PROGRAM_NAME,
-                    project.program_name,
-                    project.parent_name
-                ];
-                
-                possibleProgramNames.forEach(name => {
-                    if (name && typeof name === 'string' && name.trim()) {
-                        uniquePrograms.add(name.trim());
-                    }
-                });
-            });
-            
-            console.log('🔍 Extracted unique programs from cache:', Array.from(uniquePrograms));
-            const sortedPrograms = ['All', ...Array.from(uniquePrograms).sort()];
-            setProgramNames(sortedPrograms);
+            // Extract unique program names for dropdown (same clean logic as Portfolio page)
+            const programNames = ['All', ...Array.from(new Set(
+                subProgramData.projects
+                    .map(project => project.COE_ROADMAP_PARENT_NAME || project.INV_FUNCTION || 'Unassigned')
+                    .filter(name => name && name !== 'Root' && name !== 'Unassigned')
+            )).sort()];
+
+            setProgramNames(programNames);
             
             // Filter by selected program if specified
             let filteredProjects = subProgramData.projects;
@@ -1224,7 +1207,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                         style={{
                             width: `${timelineWidth}px`,
                             maxWidth: `calc(100vw - ${constants.LABEL_WIDTH}px)`,
-                            minHeight: '60px',
+                            minHeight: '40px',
                             paddingTop: '10px'
                         }}
                         onScroll={handleHeaderScroll}
