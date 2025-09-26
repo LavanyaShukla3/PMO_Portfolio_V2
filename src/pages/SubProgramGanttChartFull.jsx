@@ -83,12 +83,17 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         const cleanedProjects = (data.projects || []).filter(project => project && project.PROJECT_NAME);
 
         // Apply program filtering
+
         const programFilteredProjects = selectedProgram === 'All'
             ? cleanedProjects
             : cleanedProjects.filter(project => {
                 const parentName = project.COE_ROADMAP_PARENT_NAME || project.INV_FUNCTION || 'Unassigned';
-                return parentName === selectedProgram;
+                const matches = parentName === selectedProgram;
+                
+                
+                return matches;
             });
+
 
         // Apply timeline filtering BEFORE pagination
         const { startDate: timelineStart, endDate: timelineEnd } = getTimelineRangeForView(timelineView);
@@ -104,9 +109,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         // Use timeline-filtered projects for all subsequent processing
         const filteredProjects = timelineFilteredProjects;
 
-        // If no data found after filtering, return a helpful message
+        // If no data found after filtering, return empty array
         if (filteredProjects.length === 0 && selectedProgram !== 'All') {
-            console.log(`⚠️ No projects found for selected program: ${selectedProgram}`);
             return [];
         }
         
@@ -209,12 +213,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 });
             });
             
-            console.log('🎯 SUBPROGRAM HIERARCHICAL DATA:', {
-                totalItems: hierarchicalResult.length,
-                programHeaders: hierarchicalResult.filter(item => item.isProgramHeader).length,
-                childItems: hierarchicalResult.filter(item => item.isChildItem).length,
-                programGroups: Object.keys(programGroups).length
-            });
             
             return hierarchicalResult;
         })() : filteredProjects;
@@ -249,7 +247,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     );
                     
                     if (childrenBelongToParent) {
-                        console.log('🎯 SUBPROGRAM SMART PAGINATION: Adding parent header', parentHeader.displayName, 'to page', page);
                         // Add the parent header at the beginning of the page
                         paginatedSlice = [parentHeader, ...paginatedSlice];
                         
@@ -320,7 +317,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 if (timelineStartDate && timelineEndDate) {
                     const isWithinTimeline = milestoneDate >= timelineStartDate && milestoneDate <= timelineEndDate;
                     if (!isWithinTimeline) {
-                        console.log('🚫 SubProgram: Excluding milestone outside timeline:', milestone.MILESTONE_NAME, milestoneDate.toISOString());
                     }
                     return isWithinTimeline;
                 }
@@ -328,7 +324,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 return true; // If no timeline bounds provided, include all milestones
             });
 
-            console.log(`🎯 SubProgram: Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
 
             // CRITICAL FIX: Use the correct date property for grouping milestones with filtered data
             const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones, 'MILESTONE_DATE');
@@ -403,33 +398,14 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     // Use cached data
     useEffect(() => {
         if (subProgramData && subProgramData.projects) {
-            console.log('✅ Using cached subprogram data:', subProgramData);
+            // Extract unique program names for dropdown (same clean logic as Portfolio page)
+            const programNames = ['All', ...Array.from(new Set(
+                subProgramData.projects
+                    .map(project => project.COE_ROADMAP_PARENT_NAME || project.INV_FUNCTION || 'Unassigned')
+                    .filter(name => name && name !== 'Root' && name !== 'Unassigned')
+            )).sort()];
             
-            // Extract unique program names from cached data
-            const uniquePrograms = new Set();
-            console.log('🔍 Cached data - Sample projects for program name extraction:', subProgramData.projects.slice(0, 3));
-            
-            subProgramData.projects.forEach(project => {
-                // Check all possible program name properties
-                const possibleProgramNames = [
-                    project.COE_ROADMAP_PARENT_NAME,
-                    project.INV_FUNCTION,
-                    project.PARENT_NAME,
-                    project.PROGRAM_NAME,
-                    project.program_name,
-                    project.parent_name
-                ];
-                
-                possibleProgramNames.forEach(name => {
-                    if (name && typeof name === 'string' && name.trim()) {
-                        uniquePrograms.add(name.trim());
-                    }
-                });
-            });
-            
-            console.log('🔍 Extracted unique programs from cache:', Array.from(uniquePrograms));
-            const sortedPrograms = ['All', ...Array.from(uniquePrograms).sort()];
-            setProgramNames(sortedPrograms);
+            setProgramNames(programNames);
             
             // Filter by selected program if specified
             let filteredProjects = subProgramData.projects;
@@ -455,8 +431,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             setLoading(false);
             setError(null);
             
-            console.log(`✅ SubProgram data filtered: ${filteredProjects.length} items from cache`);
-
             // If no projects match the filter, show a helpful message instead of error
             if (filteredProjects.length === 0 && selectedProgramId) {
                 setError(`No sub-programs found for the selected program. Try selecting "All" or a different program.`);
@@ -658,13 +632,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         const constants = getResponsiveConstants();
         const projects = processedData || [];
 
-        console.log('🎯 MAIN PROCESSING: Starting with', projects.length, 'projects (already filtered and paginated)');
-        console.log('🎯 MAIN PROCESSING: First 3 project names:', projects.slice(0, 3).map(p => p.PROJECT_NAME));
 
         // Get timeline date range for rendering calculations
         const { startDate, endDate } = getTimelineRangeForView(timelineView);
-        console.log('📅 SubProgram Timeline view:', timelineView);
-        console.log('📅 SubProgram Timeline range:', startDate?.toISOString(), 'to', endDate?.toISOString());
 
         // Calculate total months dynamically based on selected timeline
         const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
@@ -674,12 +644,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         const dynamicMonthWidth = Math.max(30, Math.floor(availableGanttWidth / totalMonths)); // Minimum 30px per month
         const monthWidth = dynamicMonthWidth;
 
-        console.log('📐 SubProgram Dynamic sizing:', {
-            totalMonths,
-            availableGanttWidth,
-            dynamicMonthWidth,
-            viewportWidth: window.innerWidth
-        });
         
 
         // Note: Hierarchical grouping and smart pagination now happens in processedData memo
@@ -741,7 +705,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         
         // Handle program headers differently - they don't have real project data
         if (project.isProgramHeader) {
-            console.log('🎯 HIERARCHICAL: Processing program header:', project.displayName);
+
             // Use aggregated phaseData for Gantt bar
             const validPhases = project.phaseData && project.phaseData.length > 0 ? project.phaseData.filter(phase =>
                 phase && phase.TASK_NAME && phase.TASK_START && phase.TASK_FINISH && phase.TASK_START.trim() !== '' && phase.TASK_FINISH.trim() !== ''
@@ -749,7 +713,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             
             // Use aggregated milestones from program header (already aggregated from children)
             const programMilestones = project.milestones || [];
-            console.log('🎯 HIERARCHICAL: Program header has', programMilestones.length, 'aggregated milestones');
+
             
             allProjectRows.push({
                 project: project,
@@ -769,27 +733,13 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         }
 
         if (project.phaseData && project.phaseData.length > 0) {
-            console.log('🎯 DEBUG: Phase details:', project.phaseData
-                .filter(p => p && p.TASK_NAME && p.TASK_START && p.TASK_FINISH) // Comprehensive filter
-                .map(p => ({
-                name: p.TASK_NAME,
-                start: p.TASK_START,
-                finish: p.TASK_FINISH,
-                status: p.INV_OVERALL_STATUS
-            })));
+            // Project has phase data
         }
         
-        // Special debug for CaTAlyst
+        // Special handling for CaTAlyst
         if (project.PROJECT_NAME && project.PROJECT_NAME.toLowerCase().includes('catalyst')) {
             if (project.phaseData) {
-                console.log('🔍 CATALYST DEBUG: Phase details:', project.phaseData
-                    .filter(p => p && p.TASK_NAME && p.TASK_START && p.TASK_FINISH) // Comprehensive filter
-                    .map(p => ({
-                    name: p.TASK_NAME,
-                    element: p.ROADMAP_ELEMENT,
-                    start: p.TASK_START,
-                    finish: p.TASK_FINISH
-                })));
+                // CaTAlyst project has phase data
             }
         }
         
@@ -807,37 +757,21 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             phase.TASK_NAME === 'Unphased' || phase.TASK_NAME === 'Project'
         );
         
-        console.log('🎯 DEBUG: hasValidPhases:', hasValidPhases, 'hasUnphasedOnly:', hasUnphasedOnly);
-        console.log('🎯 DEBUG: validPhases count:', validPhases.length);
+
+
         if (validPhases.length > 0) {
-            console.log('🎯 DEBUG: Phase names found:', validPhases.map(p => p.TASK_NAME));
-            console.log('🎯 DEBUG: Phase details:', validPhases.map(p => ({
-                name: p.TASK_NAME,
-                start: p.TASK_START,
-                finish: p.TASK_FINISH,
-                status: p.INV_OVERALL_STATUS,
-                element: p.ROADMAP_ELEMENT
-            })));
+            // Project has valid phases
         }
         
         // Enhanced debugging for projects that should have phases
         if (validPhases.length > 0 && !hasUnphasedOnly) {
-            console.log('🎯 ENHANCED DEBUG: Project has REAL phases:', project.PROJECT_NAME);
-            console.log('🎯 ENHANCED DEBUG: Phase count:', validPhases.length);
-            console.log('🎯 ENHANCED DEBUG: All phase names:', validPhases.map(p => p.TASK_NAME));
-            console.log('🎯 ENHANCED DEBUG: Phase dates check:', validPhases.map(p => ({
-                name: p.TASK_NAME,
-                start: p.TASK_START,
-                finish: p.TASK_FINISH,
-                startParsed: parseDate(p.TASK_START),
-                finishParsed: parseDate(p.TASK_FINISH)
-            })));
+            // Project has real phases (not just unphased)
         }
         
         if (validPhases.length > 0 && !hasUnphasedOnly) {
             // Project WITH real phase data - show multiple colored phase bars
-            console.log('🎯 DEBUG: Project WITH phases:', project.PROJECT_NAME, 'phases:', validPhases.length);
-            console.log('🎯 DEBUG: Phase names:', validPhases.map(p => p.TASK_NAME));
+
+
             
             allProjectRows.push({
                 project: project, // Keep the original project object with milestones
@@ -849,7 +783,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             });
         } else if (hasUnphasedOnly) {
             // Project marked as "Unphased" - show single grey bar
-            console.log('🎯 DEBUG: Project marked as UNPHASED:', project.PROJECT_NAME);
+
             
             const unphasedPhase = validPhases[0]; // Use the first valid unphased phase data
             if (unphasedPhase && unphasedPhase.TASK_START && unphasedPhase.TASK_FINISH) {
@@ -873,7 +807,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             }
         } else {
             // Project WITHOUT phase data - show single status-colored bar using START_DATE and END_DATE
-            console.log('🎯 DEBUG: Project WITHOUT phases:', project.PROJECT_NAME, 'START_DATE:', project.START_DATE, 'END_DATE:', project.END_DATE);
+
             
             // Only create a row if the project has valid start and end dates
             if (project.START_DATE && project.END_DATE && 
@@ -899,10 +833,10 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         }
     });
     
-    console.log('🎯 DEBUG: Total rows to render:', allProjectRows.length);
-    console.log('🎯 DEBUG: Rows with phases:', allProjectRows.filter(r => r.renderType === 'phases').length);
-    console.log('🎯 DEBUG: Rows marked unphased:', allProjectRows.filter(r => r.renderType === 'unphased').length);
-    console.log('🎯 DEBUG: Rows without phases:', allProjectRows.filter(r => r.renderType === 'project').length);
+
+
+
+
     
     // *** CHECK FOR DUPLICATE PROJECT IDs ***
     const projectIds = allProjectRows.map(r => r.project?.PROJECT_ID).filter(id => id);
@@ -926,7 +860,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         renderType: r?.renderType || 'UNDEFINED_TYPE',
         hasProject: !!r?.project
     }));
-    console.log('🎯 DEBUG: First 5 projects:', first5);
+
     
     const last5 = allProjectRows.slice(-5).map((r, i) => ({ 
         index: allProjectRows.length - 5 + i,
@@ -934,7 +868,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         renderType: r?.renderType || 'UNDEFINED_TYPE',
         hasProject: !!r?.project
     }));
-    console.log('🎯 DEBUG: Last 5 projects:', last5);
+
     
     // Check for any undefined projects in the array
     const undefinedProjects = allProjectRows.filter(r => !r || !r.project);
@@ -952,15 +886,15 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         return true;
     });
     
-    console.log('🎯 DEBUG: Total valid rows for rendering:', validProjectRows.length);
-    console.log('🎯 DEBUG: Filtered out invalid rows:', allProjectRows.length - validProjectRows.length);
+
+
 
     // Check if CaTAlyst is in the processed rows (use validProjectRows now)
     const catalystRow = validProjectRows.find(r => r?.project?.PROJECT_NAME === 'CaTAlyst');
     if (catalystRow) {
-        console.log('🎯 CATALYST DEBUG: CaTAlyst found in processed rows!', catalystRow);
+
     } else {
-        console.log('🎯 CATALYST DEBUG: CaTAlyst NOT found in processed rows');
+
     }
 
     return (
@@ -1309,8 +1243,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     // *** MODIFIED: Allow rendering Gantt bars for program headers ***
                     // Program headers now have aggregated data and should display Gantt bars
                     if (row.isProgramHeader) {
-                        console.log('🎯 HIERARCHICAL: Rendering Gantt bar for program header:', row.project.displayName);
-                        console.log('🎯 HIERARCHICAL: Program header has phases:', row.hasPhases, 'milestone count:', row.project.milestones?.length || 0);
+
+
                     }                                    // Process milestones first to get accurate height calculation
                                     const projectEndDate = row.hasPhases 
                                         ? (row.phases && row.phases.length > 0 ? row.phases.reduce((latest, phase) => {
@@ -1372,19 +1306,19 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                             {row.renderType === 'phases' ? (
                                                 // Project WITH phases - render multiple colored phase bars
                                                 (() => {
-                                                    console.log('🎨 RENDERING PHASES for:', row.PROJECT_NAME, 'with', row.phases.length, 'phases');
+
                                                     return row.phases
                                                         .filter(phase => phase && phase.TASK_NAME && phase.TASK_START && phase.TASK_FINISH) // Filter out null phases and ensure dates exist
                                                         .map((phase, phaseIndex) => {
-                                                        console.log('🔍 Phase parsing for', row.PROJECT_NAME, '- Phase:', phase.TASK_NAME, 'Raw dates:', phase.TASK_START, 'to', phase.TASK_FINISH);
+
                                                         
                                                         const phaseStartDate = parseDate(phase.TASK_START);
                                                         const phaseEndDate = parseDate(phase.TASK_FINISH);
                                                         
-                                                        console.log('🔍 Parsed dates for', phase.TASK_NAME, ':', phaseStartDate, 'to', phaseEndDate);
+
                                                         
                                                         if (!phaseStartDate || !phaseEndDate) {
-                                                            console.log('🚨 Invalid phase dates:', phase.TASK_NAME, 'START:', phase.TASK_START, 'END:', phase.TASK_FINISH, 'Parsed START:', phaseStartDate, 'Parsed END:', phaseEndDate);
+
                                                             return null;
                                                         }
                                                         
@@ -1394,7 +1328,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                         // Get the phase color based on the task name
                                                         const phaseColor = PHASE_COLORS[phase.TASK_NAME] || PHASE_COLORS['Unphased'];
                                                         
-                                                        console.log('🎨 Phase rendering:', phase.TASK_NAME, 'color:', phaseColor, 'dates:', phase.TASK_START, 'to', phase.TASK_FINISH, 'x:', x, 'width:', width);
+
                                                         
                                                         return (
                                                             <GanttBar
@@ -1420,8 +1354,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                             ) : (
                                                 // Project WITHOUT phases OR marked as "Unphased" - render single bar
                                                 (() => {
-                                                    console.log('🎨 RENDERING SINGLE BAR for:', row.PROJECT_NAME, 'renderType:', row.renderType);
-                                                    console.log('🎨 Single bar data:', row.singleProjectPhase);
+
+
                                                     
                                                     // CRITICAL FIX: Add comprehensive safety checks
                                                     if (!row.singleProjectPhase || 
@@ -1435,7 +1369,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                     const projectEndDate = parseDate(row.singleProjectPhase.TASK_FINISH);
                                                     
                                                     if (!projectStartDate || !projectEndDate) {
-                                                        console.log('🚨 Invalid project dates:', row.PROJECT_NAME, 'START:', row.singleProjectPhase.TASK_START, 'END:', row.singleProjectPhase.TASK_FINISH, 'Parsed START:', projectStartDate, 'Parsed END:', projectEndDate);
+
                                                         return null;
                                                     }
                                                     
@@ -1450,7 +1384,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                         barColor = STATUS_COLORS[row.STATUS] || STATUS_COLORS['Grey']; // Status color for projects
                                                     }
                                                     
-                                                    console.log('🎨 Single bar rendering:', row.renderType, 'color:', barColor, 'dates:', row.singleProjectPhase.TASK_START, 'to', row.singleProjectPhase.TASK_FINISH, 'x:', x, 'width:', width);
+
                                                     
                                                     return (
                                                         <GanttBar
