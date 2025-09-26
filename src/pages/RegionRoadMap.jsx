@@ -1217,14 +1217,8 @@ const RegionRoadMap = () => {
                                                                     });
                                                                 }
 
-                                                                // Get status color
-                                                                const statusColors = {
-                                                                    'Red': '#ef4444',
-                                                                    'Amber': '#f59e0b',
-                                                                    'Green': '#10b981',
-                                                                    'Grey': '#9ca3af',
-                                                                    'Yellow': '#E5DE00'
-                                                                };
+                                                                // For unphased records, always use grey color regardless of INV_OVERALL_STATUS
+                                                                const unphased_grey_color = '#c0c0c0'; // Light grey for all unphased records
 
                                                                 return (
                                                                     <rect
@@ -1234,7 +1228,7 @@ const RegionRoadMap = () => {
                                                                         width={Math.max(width + 2, 4)}
                                                                         height={12}
                                                                         rx={3}
-                                                                        fill={project.status ? statusColors[project.status] : statusColors.Grey}
+                                                                        fill={unphased_grey_color}
                                                                         className="transition-opacity duration-150 hover:opacity-90 cursor-default"
                                                                     >
                                                                         <title>{project.name}</title>
