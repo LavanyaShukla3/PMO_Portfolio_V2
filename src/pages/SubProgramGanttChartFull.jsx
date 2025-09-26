@@ -3,11 +3,11 @@ import TimelineAxis from '../components/TimelineAxis';
 import MilestoneMarker from '../components/MilestoneMarker';
 import GanttBar from '../components/GanttBar';
 import PaginationControls from '../components/PaginationControls';
-import { getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calculatePosition, calculateMilestonePosition, groupMilestonesByMonth, getMonthlyLabelPosition, getInitialScrollPosition, truncateLabel, createVerticalMilestoneLabels } from '../utils/dateUtils';
+import { getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calculatePosition, calculateMilestonePosition, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels } from '../utils/dateUtils';
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
-import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
+import { getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
-import { differenceInMonths, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 
 // Fixed constants (zoom removed)
 const getResponsiveConstants = () => {
@@ -64,9 +64,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     // Get cached data and state
     const { 
         subProgramData, 
-        isLoading: cacheLoading, 
-        preserveViewState, 
-        getViewState 
+        isLoading: cacheLoading
     } = useGlobalDataCache();
     
     // Timeline view state with default to current14
@@ -400,21 +398,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         }
     };
 
-    // Sample static data for testing
-    const sampleData = {
-        INV_INT_ID: 6407053,
-        INV_EXT_ID: 'PR00005940',
-        CLRTY_INV_TYPE: 'Project',
-        INVESTMENT_NAME: 'DTV: PFNA Case Pack Optimization',
-        phases: [
-            { ROADMAP_ELEMENT: 'Phases', TASK_NAME: 'Initiate', TASK_START: '10-Jun-24', TASK_FINISH: '06-Aug-24', INV_OVERALL_STATUS: 'Grey', INV_FUNCTION: 'S&T' },
-            { ROADMAP_ELEMENT: 'Phases', TASK_NAME: 'Define', TASK_START: '07-Aug-24', TASK_FINISH: '23-Aug-24', INV_OVERALL_STATUS: 'Grey', INV_FUNCTION: 'S&T' },
-            { ROADMAP_ELEMENT: 'Phases', TASK_NAME: 'Design', TASK_START: '24-Aug-24', TASK_FINISH: '16-Sep-24', INV_OVERALL_STATUS: 'Grey', INV_FUNCTION: 'S&T' },
-            { ROADMAP_ELEMENT: 'Phases', TASK_NAME: 'Build', TASK_START: '17-Sep-24', TASK_FINISH: '11-Nov-24', INV_OVERALL_STATUS: 'Grey', INV_FUNCTION: 'S&T' },
-            { ROADMAP_ELEMENT: 'Phases', TASK_NAME: 'Qualify', TASK_START: '12-Nov-24', TASK_FINISH: '21-Apr-25', INV_OVERALL_STATUS: 'Grey', INV_FUNCTION: 'S&T' },
-            { ROADMAP_ELEMENT: 'Phases', TASK_NAME: 'Close', TASK_START: '22-Apr-25', TASK_FINISH: '31-Dec-25', INV_OVERALL_STATUS: 'Grey', INV_FUNCTION: 'S&T' }
-        ]
-    };
+    
 
     // Use cached data
     useEffect(() => {
@@ -483,96 +467,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         }
     }, [subProgramData, cacheLoading, selectedProgramId, selectedProgramName]);
     
-    // Legacy API loading (kept as fallback - remove after testing)
-    useEffect(() => {
-        if (subProgramData) return; // Skip if we have cached data
-        
-        const loadData = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                
-                
-                // Add the sample data to the existing data for testing
-                const combinedProjects = [...(result.projects || [])];
-                
-                // TEMPORARILY DISABLED: Remove sample project to see pure API result
-                // Add sample project
-                /*
-                combinedProjects.push({
-                    PROJECT_ID: 'SAMPLE_' + sampleData.INV_EXT_ID,
-                    PROJECT_NAME: sampleData.INVESTMENT_NAME,
-                    START_DATE: sampleData.phases[0].TASK_START,
-                    END_DATE: sampleData.phases[sampleData.phases.length - 1].TASK_FINISH,
-                    STATUS: sampleData.phases[0].INV_OVERALL_STATUS,
-                    INV_FUNCTION: sampleData.phases[0].INV_FUNCTION,
-                    COE_ROADMAP_PARENT_NAME: 'S&T Sample Program', // Add parent program name
-                    isSubProgram: true,
-                    phaseData: sampleData.phases,
-                    milestones: []
-                });
-                */
-                
-                const combinedData = {
-                    ...result,
-                    projects: combinedProjects
-                };
-                
-                // Extract unique program names from projects (with enhanced property checking)
-                const uniquePrograms = new Set();
-                console.log('🔍 Sub-program data - Sample projects for program name extraction:', combinedProjects.slice(0, 3));
-                
-                combinedProjects.forEach(project => {
-                    // Check all possible program name properties
-                    const possibleProgramNames = [
-                        project.COE_ROADMAP_PARENT_NAME,
-                        project.INV_FUNCTION,
-                        project.PARENT_NAME,
-                        project.PROGRAM_NAME,
-                        project.program_name,
-                        project.parent_name
-                    ];
-                    
-                    possibleProgramNames.forEach(name => {
-                        if (name && typeof name === 'string' && name.trim()) {
-                            uniquePrograms.add(name.trim());
-                        }
-                    });
-                });
-                
-                console.log('🔍 Extracted unique programs:', Array.from(uniquePrograms));
-                
-                // Create sorted list with "All" first
-                const sortedPrograms = ['All', ...Array.from(uniquePrograms).sort()];
-                setProgramNames(sortedPrograms);
-                
-                setData(combinedData);
-                setAllData(combinedProjects); // Store all projects for pagination
-                setTotalItems(combinedProjects.length); // Update total count
-                setDataVersion(prev => prev + 1); // Increment data version to force re-render
-                
-                // Initial scroll to show current month - 1 (Aug 2025 if current is Sep 2025)
-                setTimeout(() => {
-                    if (scrollContainerRef.current && headerScrollRef.current) {
-                        // Get responsive constants for month width
-                        const constants = getResponsiveConstants();
-                        const scrollPosition = getInitialScrollPosition(constants.MONTH_WIDTH);
-
-                        scrollContainerRef.current.scrollLeft = scrollPosition;
-                        headerScrollRef.current.scrollLeft = scrollPosition;
-                    }
-                }, 100);
-                
-            } catch (err) {
-                console.error('❌ Failed to load sub-program data from progressiveApiService:', err);
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadData();
-    }, []);
+    // Removed legacy API loading effect and test sample data
 
     // Zoom removed
 
@@ -583,18 +478,22 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     };
 
     const handleScroll = (e) => {
-        if (headerScrollRef.current) {
-            headerScrollRef.current.scrollLeft = e.target.scrollLeft;
+        const scrollLeft = e.target.scrollLeft;
+        const scrollTop = e.target.scrollTop;
+        // Sync horizontal scroll with header (guard against loops)
+        if (headerScrollRef.current && headerScrollRef.current.scrollLeft !== scrollLeft) {
+            headerScrollRef.current.scrollLeft = scrollLeft;
         }
-        // Sync vertical scroll with left panel
-        if (leftPanelRef.current) {
-            leftPanelRef.current.scrollTop = e.target.scrollTop;
+        // Sync vertical scroll with left panel (guard against loops)
+        if (leftPanelRef.current && leftPanelRef.current.scrollTop !== scrollTop) {
+            leftPanelRef.current.scrollTop = scrollTop;
         }
     };
 
     const handleHeaderScroll = (e) => {
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollLeft = e.target.scrollLeft;
+        const scrollLeft = e.target.scrollLeft;
+        if (scrollContainerRef.current && scrollContainerRef.current.scrollLeft !== scrollLeft) {
+            scrollContainerRef.current.scrollLeft = scrollLeft;
         }
     };
 
@@ -758,7 +657,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
 
         const constants = getResponsiveConstants();
         const projects = processedData || [];
-        const milestones = data.milestones || [];
 
         console.log('🎯 MAIN PROCESSING: Starting with', projects.length, 'projects (already filtered and paginated)');
         console.log('🎯 MAIN PROCESSING: First 3 project names:', projects.slice(0, 3).map(p => p.PROJECT_NAME));
@@ -1322,15 +1220,19 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     {/* Timeline Header */}
                     <div 
                         ref={headerScrollRef}
-                        className="bg-gray-100 border-b border-gray-200 overflow-hidden"
-                        style={{ height: '40px' }}
+                        className="bg-gray-100 border-b border-gray-200 overflow-x-auto overflow-y-hidden"
+                        style={{
+                            width: `${monthWidth * constants.VISIBLE_MONTHS}px`,
+                            maxWidth: `calc(100vw - ${constants.LABEL_WIDTH}px)`,
+                            minHeight: '60px',
+                            paddingTop: '10px'
+                        }}
+                        onScroll={handleHeaderScroll}
                     >
                         <TimelineAxis
                             startDate={startDate}
                             endDate={endDate}
                             monthWidth={monthWidth}
-                            height={40}
-                            totalWidth="100%"
                             fontSize={constants.FONT_SIZE}
                         />
                     </div>

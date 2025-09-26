@@ -44,13 +44,14 @@ const TimelineAxis = ({
                 {months.map((month) => (
                     <div
                         key={month.label}
-                        className="flex-shrink-0 p-1 text-xs font-medium text-gray-600 border-r border-gray-200 flex items-center justify-center"
+                        className="flex-shrink-0 p-1 text-xs font-medium text-gray-600 border-r border-gray-200 flex items-center justify-center bg-white"
                         style={{
                             width: `${monthWidth}px`,
                             fontSize: fontSize,
                             minHeight: '40px',
                             maxWidth: `${monthWidth}px`,
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            backgroundColor: 'white'
                         }}
                     >
                         <span className="text-center leading-tight truncate">
