@@ -424,18 +424,7 @@ const RegionRoadMap = () => {
         }
     }, [regionFilters]);
 
-    // Handle initial scroll position after data loads and month width is calculated
-    useEffect(() => {
-        if (!loading && timelineScrollRef.current && monthWidth) {
-            // Use utility function to calculate proper scroll position to show current month - 1
-            const scrollPosition = getInitialScrollPosition(monthWidth);
-            timelineScrollRef.current.scrollLeft = scrollPosition;
-            // Sync gantt scroll position
-            if (ganttScrollRef.current) {
-                ganttScrollRef.current.scrollLeft = scrollPosition;
-            }
-        }
-    }, [loading, monthWidth]);
+
 
     // Simple market update when region filter changes
     useEffect(() => {
@@ -817,9 +806,9 @@ const RegionRoadMap = () => {
                                     {/* Timeline Axis */}
                                     <div
                                         ref={timelineScrollRef}
-                                        className="flex-1 overflow-x-auto"
+                                        className="flex-1 overflow-hidden"
                                         style={{
-                                            width: `${responsiveConstants.MONTH_WIDTH * responsiveConstants.VISIBLE_MONTHS}px`,
+                                            width: '100%',
                                             maxWidth: `calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`
                                         }}
                                         onScroll={handleTimelineScroll}
@@ -870,9 +859,9 @@ const RegionRoadMap = () => {
                                     {/* Timeline Axis and Controls */}
                                     <div
                                         ref={timelineScrollRef}
-                                        className="flex-1 overflow-x-auto"
+                                        className="flex-1 overflow-hidden"
                                         style={{
-                                            width: `${responsiveConstants.MONTH_WIDTH * responsiveConstants.VISIBLE_MONTHS}px`,
+                                            width: '100%',
                                             maxWidth: `calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`
                                         }}
                                         onScroll={handleTimelineScroll}
@@ -1037,9 +1026,9 @@ const RegionRoadMap = () => {
                                 {/* Right Panel - Timeline Content */}
                                 <div
                                     ref={ganttScrollRef}
-                                    className="flex-1 overflow-x-auto"
+                                    className="flex-1 overflow-hidden"
                                     style={{
-                                        width: `${responsiveConstants.MONTH_WIDTH * responsiveConstants.VISIBLE_MONTHS}px`,
+                                        width: '100%',
                                         maxWidth: `calc(100vw - ${responsiveConstants.LABEL_WIDTH}px)`
                                     }}
                                     onScroll={handleGanttScroll}

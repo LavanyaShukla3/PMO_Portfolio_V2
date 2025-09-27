@@ -54,17 +54,6 @@ const MilestoneMarker = ({
         finalVerticalOffset = -size / 2;
     }
     
-    // DEBUG LOGGING for MilestoneMarker
-    if (label && label.includes('Migrate')) { // Only log for a specific milestone to avoid spam
-        console.log(`🔍 MilestoneMarker DEBUG for "${label}"`);
-        console.log(`  📥 Input y: ${y}`);
-        console.log(`  🎯 useTopAnchoring: ${useTopAnchoring}`);
-        console.log(`  📏 size: ${size}`);
-        console.log(`  🔄 finalY: ${finalY}`);
-        console.log(`  📐 finalVerticalOffset: ${finalVerticalOffset}`);
-        console.log(`  🎨 Final render Y: ${finalY + finalVerticalOffset}`);
-        console.log(`  ---`);
-    }
 
     // DYNAMIC WRAPPING: Allow label to stretch between neighboring milestones with alternating row awareness
     const truncateLabel = (labelText, currentLabelPosition) => {
