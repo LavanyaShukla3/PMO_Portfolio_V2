@@ -1088,7 +1088,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                 p.project.milestones || [],
                                 startDate,
                                 monthWidth,
-                                projectEndDate
+                                projectEndDate,
+                                startDate,  // timelineStartDate
+                                endDate     // timelineEndDate
                             );
                             
                             return total + calculateBarHeight(p, processedMilestones, monthWidth) + ultraMinimalSpacing;
@@ -1114,7 +1116,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                 row.project.milestones || [], // Fix: Use milestones from project object
                                 startDate,
                                 monthWidth,
-                                projectEndDate
+                                projectEndDate,
+                                startDate,  // timelineStartDate
+                                endDate     // timelineEndDate
                             );
                             
                             const rowHeight = calculateBarHeight(row, processedMilestones, monthWidth);
