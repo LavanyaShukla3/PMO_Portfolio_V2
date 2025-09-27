@@ -709,9 +709,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         }
     });
 
-    // Calculate total width for the timeline (matching responsive pattern)
-    const totalWidth = totalMonths * monthWidth;
-    const timelineWidth = totalWidth;
+    // Remove totalWidth calculation to prevent horizontal scrolling (matching Portfolio page)
+    // const totalWidth = totalMonths * monthWidth; // Removed - causes horizontal scrolling
+    const timelineWidth = Math.max(800, window.innerWidth - constants.LABEL_WIDTH); // Dynamic width like Portfolio page
     
     // Process project phases for rendering - handle hierarchical structure
     const allProjectRows = [];
@@ -1203,10 +1203,10 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     {/* Timeline Header */}
                     <div 
                         ref={headerScrollRef}
-                        className="bg-gray-100 border-b border-gray-200 overflow-x-auto overflow-y-hidden"
+                        className="bg-gray-100 border-b border-gray-200 overflow-x-hidden overflow-y-hidden"
                         style={{
-                            width: `${timelineWidth}px`,
-                            maxWidth: `calc(100vw - ${constants.LABEL_WIDTH}px)`,
+                            width: '100%',
+
                             minHeight: '40px',
                             paddingTop: '10px'
                         }}
@@ -1217,22 +1217,22 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                             endDate={endDate}
                             monthWidth={monthWidth}
                             fontSize={constants.FONT_SIZE}
-                            totalWidth={`${timelineWidth}px`}
+                            
                         />
                     </div>
 
                     {/* Gantt Chart Area */}
                     <div 
                         ref={scrollContainerRef}
-                        className="flex-1 overflow-auto"
-                        style={{ 
-                            overflowX: 'auto', 
-                            overflowY: 'auto',
-                            maxWidth: `calc(100vw - ${constants.LABEL_WIDTH}px)`
-                        }}
+                        className="flex-1 overflow-y-auto overflow-x-hidden"
+
+
+
+
+
                         onScroll={handleScroll}
                     >
-                        <div style={{ width: `${timelineWidth}px`, height: (() => {
+                        <div style={{ width: '100%', height: (() => {
                             const topMargin = Math.round(8 * 1.0);
                             const ultraMinimalSpacing = Math.round(1 * 1.0);
                             return validProjectRows.reduce((total, p) => {
@@ -1256,7 +1256,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                         })() }}>
                             <svg 
                                 key={`gantt-${selectedProgram}-${dataVersion}`} // Add key to force re-render
-                                width={timelineWidth}
+                                width={Math.max(800, window.innerWidth - constants.LABEL_WIDTH)}
                                 height={(() => {
                                     const topMargin = Math.round(8 * 1.0);
                                     const ultraMinimalSpacing = Math.round(1 * 1.0);

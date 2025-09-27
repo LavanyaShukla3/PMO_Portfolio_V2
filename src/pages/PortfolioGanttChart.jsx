@@ -481,51 +481,51 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         return Math.max(minimumHeight, contentDrivenHeight);
     };
 
-    // Calculate dynamic spacing that utilizes available viewport height
-    const getDynamicSpacingInfo = () => {
+    // Use compact spacing like Program page instead of distributing across viewport
+    const getCompactSpacingInfo = () => {
         const scaledData = getScaledFilteredData();
-        if (scaledData.length === 0) return { totalHeight: 400, spacing: 8 };
+        if (scaledData.length === 0) return { totalHeight: 400, spacing: 1, topMargin: 8 };
 
-        // Calculate available content height (viewport minus headers and pagination)
-        const viewportHeight = window.innerHeight;
-        const headerHeight = 120; // Approximate height for top header and timeline axis
-        const paginationHeight = 60; // Approximate height for pagination
-        const availableContentHeight = viewportHeight - headerHeight - paginationHeight;
+        // Use fixed ultra-minimal spacing for compact layout (like Program page)
+        const ultraMinimalSpacing = 1; // Ultra-minimal spacing - just 1px separation
+        const topMargin = 8; // Absolute minimum top margin - just enough to prevent clipping
 
-        // Calculate total content height needed (without spacing)
+        // Calculate total height with compact spacing
         const totalContentHeight = scaledData.reduce((total, project) => {
-            return total + calculateBarHeight(project);
-        }, 0);
-
-        // Calculate how much space we have left for spacing
-        const topMargin = 12; // Reduced top margin for more compact layout
-        const bottomPadding = 16; // Reduced bottom padding for more compact layout
-        const usableSpacingArea = availableContentHeight - totalContentHeight - topMargin - bottomPadding;
-
-        // Distribute the remaining space as spacing between rows
-        const numberOfGaps = Math.max(1, scaledData.length + 1); // +1 for space before first item
-
-        // CRITICAL: Ensure minimum spacing to prevent milestone label overlap
-        // Calculate max milestone label extension that could overlap with adjacent rows
-        const LINE_HEIGHT = 12;
-        const MILESTONE_OFFSET = 3; // Reduced offset for compact layout
-        const maxMilestoneExtension = LINE_HEIGHT + MILESTONE_OFFSET; // Max label extension
-        const minRequiredSpacing = Math.max(6, maxMilestoneExtension * 0.6); // Compact but safe spacing
-
-        const calculatedSpacing = usableSpacingArea > 0 ? Math.floor(usableSpacingArea / numberOfGaps) : 0;
-        const dynamicSpacing = Math.max(minRequiredSpacing, calculatedSpacing); // Ensure minimum spacing for milestone clarity
-
-        const totalHeight = totalContentHeight + (dynamicSpacing * numberOfGaps) + topMargin + bottomPadding;
+            return total + calculateBarHeight(project) + ultraMinimalSpacing;
+        }, topMargin);
 
         return {
-            totalHeight: Math.max(availableContentHeight, totalHeight),
-            spacing: dynamicSpacing,
+            totalHeight: totalContentHeight,
+            spacing: ultraMinimalSpacing,
             topMargin
         };
     };
 
     const getTotalHeight = () => {
-        return getDynamicSpacingInfo().totalHeight;
+        const scaledData = getScaledFilteredData();
+        const ultraMinimalSpacing = 1; // Ultra-minimal spacing - just 1px separation
+        const topMargin = 8; // Absolute minimum top margin
+        
+        // Calculate base height with compact spacing
+        const baseHeight = scaledData.reduce((total, project) => {
+            const barHeight = calculateBarHeight(project);
+            return total + barHeight + ultraMinimalSpacing;
+        }, topMargin);
+        
+        // Add extra space at the bottom for the last item's milestone labels that extend below
+        if (scaledData.length > 0) {
+            const lastProject = scaledData[scaledData.length - 1];
+            if (lastProject.milestones?.length > 0) {
+                // Calculate how much the milestone labels extend below the last bar
+                const milestoneHeights = calculateMilestoneLabelHeight(lastProject.milestones, dynamicMonthWidth, scaledData.length - 1);
+                // Add the below height plus some padding to ensure labels aren't cut off
+                const bottomPadding = milestoneHeights.below + 20; // Extra 20px safety padding
+                return baseHeight + bottomPadding;
+            }
+        }
+        
+        return baseHeight + 20; // Add minimal bottom padding even if no milestones
     };
 
 
@@ -685,14 +685,15 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                 >
                     <div style={{ position: 'relative', height: getTotalHeight() }}>
                         {getScaledFilteredData().map((project, index) => {
-                            const displayData = getScaledFilteredData();
-                            const spacingInfo = getDynamicSpacingInfo();
+                            const scaledData = getScaledFilteredData();
+                            const ultraMinimalSpacing = 1; // Ultra-minimal spacing
+                            const topMargin = 8; // Absolute minimum top margin - just enough to prevent clipping
                             console.log('🎨 Rendering project:', index, project.name, project);
 
-                            // Use dynamic spacing for better visual separation
-                            const yOffset = displayData
+                            // Use fixed compact spacing like Program page
+                            const yOffset = scaledData
                                 .slice(0, index)
-                                .reduce((total, p) => total + calculateBarHeight(p) + spacingInfo.spacing, spacingInfo.topMargin + spacingInfo.spacing);
+                                .reduce((total, p) => total + calculateBarHeight(p) + ultraMinimalSpacing, topMargin);
                             
                             return (
                                 <div
@@ -764,20 +765,21 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                         >
                             {/* iii. Removed swimlanes from PortfolioGanttChart as requested */}
                             {getScaledFilteredData().map((project, index) => {
-                                // Calculate cumulative Y offset using dynamic spacing for optimal layout
+                                // Calculate cumulative Y offset using compact fixed spacing
                                 const scaledData = getScaledFilteredData();
-                                const spacingInfo = getDynamicSpacingInfo();
+                                const ultraMinimalSpacing = 1; // Ultra-minimal spacing
+                                const topMargin = 8; // Absolute minimum top margin
                                 console.log('📊 Rendering Gantt bar for:', index, project.name, {
                                     startDate: project.startDate,
                                     endDate: project.endDate,
                                     milestones: project.milestones?.length || 0,
-                                    spacing: spacingInfo.spacing
+                                    spacing: ultraMinimalSpacing
                                 });
 
-                                // Use dynamic spacing that matches the left panel
+                                // Use fixed compact spacing that matches the left panel
                                 const yOffset = scaledData
                                     .slice(0, index)
-                                    .reduce((total, p) => total + calculateBarHeight(p) + spacingInfo.spacing, spacingInfo.topMargin + spacingInfo.spacing);
+                                    .reduce((total, p) => total + calculateBarHeight(p) + ultraMinimalSpacing, topMargin);
 
                                 const projectStartDate = parseDate(project.startDate);
                                 const projectEndDate = parseDate(project.endDate);

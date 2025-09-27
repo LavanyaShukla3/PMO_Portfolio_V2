@@ -6,5 +6,5 @@ echo.
 echo Activating Python environment and starting Flask server...
 echo Server will be available at: http://localhost:5000
 echo.
-python app.py
+py app.py
 pause
