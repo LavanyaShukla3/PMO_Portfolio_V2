@@ -224,8 +224,9 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
             
             console.log(`✅ Program data filtered: ${filteredData.length} items from cache`);
         } else if (!cacheLoading && !programData) {
-            setError('No program data available');
-            setLoading(false);
+            // Don't show error immediately - data might still be loading
+            // Only show error if we're really done loading and have no data
+            setLoading(true); // Keep showing loading state
         }
     }, [programData, cacheLoading, selectedPortfolioId]);
 
@@ -583,7 +584,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
             )}
 
             {/* Main Content - Show when data is available (even while loading more) */}
-            {(allData.length > 0 || !loading) && !error && (
+            {(allData.length > 0 || (!loading && !cacheLoading)) && !error && (
             <>
             {/* Compact Header */}
             <div className="flex-shrink-0 px-2 py-2 bg-gray-50 border-b border-gray-200">

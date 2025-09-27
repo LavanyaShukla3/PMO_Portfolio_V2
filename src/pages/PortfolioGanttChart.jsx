@@ -196,8 +196,8 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
             setLoading(false);
             setError(null);
         } else if (!cacheLoading && !portfolioData) {
-            setError('No portfolio data available');
-            setLoading(false);
+            // Don't show error immediately - keep loading state
+            setLoading(true);
         }
     }, [portfolioData, cacheLoading]);
 
@@ -556,11 +556,23 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     <span>{currentPage === 1 ? 'Loading...' : `Loading page ${currentPage}`}</span>
                 </div>
             )}
+            {/* Loading State - Show when data is still being fetched */}
+            {(cacheLoading || (loading && allData.length === 0)) && !error && (
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600 text-lg">Loading Portfolio data...</p>
+                        <p className="text-sm text-gray-500 mt-2">Please wait while we fetch the data</p>
+                    </div>
+                </div>
+            )}
+
+
 
 
 
             {/* Error State */}
-            {error && (
+            {error && !cacheLoading && (
                 <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded m-4">
                     <h3 className="font-semibold">Error Loading Portfolio Data</h3>
                     <p>{error}</p>
