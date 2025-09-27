@@ -589,7 +589,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         }
     };
 
-    // Calculate row height for each project (ULTRA-COMPACT LOGIC - Like Program)
+    // Calculate row height for each project with special handling for parent records
     const calculateBarHeight = (project, processedMilestones = null, monthWidthArg = 100) => {
         const constants = getResponsiveConstants();
         const ganttBarHeight = constants.BASE_BAR_HEIGHT; // The height of the bar itself
@@ -604,26 +604,47 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         const hasNoMilestones = (!processedMilestones || processedMilestones.length === 0) && 
                                (!project?.milestones || project.milestones.length === 0);
 
-        // Match Program page's height calculation approach exactly
-        
-        // Calculate project name space (same as Program page)
+        // Calculate project name space with special handling for parent records
         const projectName = project?.PROJECT_NAME || project?.displayName || '';
-        const estimatedNameWidth = constants.LABEL_WIDTH - 16; // Account for padding
-        const maxCharsPerLine = Math.max(30, estimatedNameWidth / 7); // More efficient text wrapping
-        const textLines = Math.ceil(projectName.length / maxCharsPerLine);
-        const lineHeight = Math.round(12 * 1.0); // Compact line height
-        const nameHeight = Math.max(16, textLines * lineHeight); // Just enough for text
+        const estimatedNameWidth = constants.LABEL_WIDTH - 24; // Account for padding
+        const lineHeight = Math.round(16 * 1.0); // Increased line height for better readability
         
-        // Content-driven height calculation with proper milestone spacing (Program page logic)
-        const leftPanelNeeds = nameHeight + 8; // Name + minimal padding (same as Program page)
-        const rightPanelNeeds = milestoneHeights.above + ganttBarHeight + milestoneHeights.below + 8; // Proper vertical stacking (same as Program page)
+        let nameHeight;
+        let minimumHeight;
         
-        // Use the larger of the two, but keep it compact
+        // Special handling for parent records (program headers)
+        if (project?.isProgramHeader) {
+            // Calculate actual lines needed for text
+            const maxCharsPerLine = Math.max(25, estimatedNameWidth / 8); // Fewer chars per line for headers
+            const actualTextLines = Math.ceil(projectName.length / maxCharsPerLine);
+            
+            // Ensure minimum of 3 lines of space for parent records
+            const minLinesForParent = 3;
+            const textLines = Math.max(minLinesForParent, actualTextLines);
+            
+            // Calculate dynamic height based on text needs
+            nameHeight = textLines * lineHeight;
+            
+            // Parent records get higher minimum height
+            minimumHeight = Math.round(minLinesForParent * lineHeight + 12); // 3 lines + padding
+        } else {
+            // Regular project items
+            const maxCharsPerLine = Math.max(30, estimatedNameWidth / 7); // More efficient text wrapping
+            const textLines = Math.ceil(projectName.length / maxCharsPerLine);
+            nameHeight = Math.max(16, textLines * lineHeight); // Just enough for text
+            
+            // Regular minimum height
+            minimumHeight = Math.round(28 * 1.0); // Same as before for regular items
+        }
+        
+        // Content-driven height calculation with proper milestone spacing
+        const leftPanelNeeds = nameHeight + 12; // Name + padding (increased padding for better spacing)
+        const rightPanelNeeds = milestoneHeights.above + ganttBarHeight + milestoneHeights.below + 8; // Proper vertical stacking
+        
+        // Use the larger of the two
         const contentDrivenHeight = Math.max(leftPanelNeeds, rightPanelNeeds);
         
-        // Ensure minimum usability (same as Program page)
-        const minimumHeight = Math.round(28 * 1.0); // Same as Program page
-        
+        // Return the maximum of minimum and content-driven height
         return Math.max(minimumHeight, contentDrivenHeight);
     };
 
@@ -1163,15 +1184,15 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                     style={{ 
                                         top: yOffset,
                                         height: `${rowHeight}px`,
-                                        paddingTop: '6px', // Add top padding
-                                        paddingBottom: '6px', // Add bottom padding
+                                        paddingTop: row.isProgramHeader ? '10px' : '6px', // More padding for headers
+                                        paddingBottom: row.isProgramHeader ? '10px' : '6px', // More padding for headers
                                         paddingLeft: constants.TOUCH_TARGET_SIZE > 24 ? '12px' : '8px',
                                         fontSize: row.isProgramHeader ? 
                                             `calc(${constants.FONT_SIZE} * 1.1)` : 
                                             constants.FONT_SIZE,
                                         width: '100%',
                                         cursor: 'default',
-                                        minHeight: constants.TOUCH_TARGET_SIZE,
+                                        minHeight: row.isProgramHeader ? '60px' : constants.TOUCH_TARGET_SIZE, // Higher minimum for headers
                                         fontWeight: (row.project.isProgram || row.isProgramHeader) ? 600 : 'normal',
                                         textTransform: (row.project.isProgram || row.isProgramHeader) ? 'uppercase' : 'none',
                                     }}
@@ -1179,17 +1200,25 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                     <div className="flex items-center justify-between w-full h-full">
                                         <div className="flex flex-col justify-center flex-1 py-1.5">
                                             <span 
-                                                className={`pr-2 leading-tight ${
+                                                className={`pr-2 ${
                                                     row.isProgramHeader ? 'font-bold text-blue-900' :
                                                     row.project.isProgram ? 'font-semibold text-gray-800' :
                                                     'font-medium text-gray-700'
                                                 }`}
                                                 title={row.project.displayName || row.project.PROJECT_NAME}
                                                 style={{
+                                                    // Multi-line text handling with proper clamping
+                                                    display: '-webkit-box',
+                                                    WebkitBoxOrient: 'vertical',
+                                                    WebkitLineClamp: row.isProgramHeader ? 0 : 3, // No clamping for parent records, 3 lines for others
+                                                    overflow: row.isProgramHeader ? 'visible' : 'hidden',
+                                                    textOverflow: 'ellipsis',
                                                     wordBreak: 'break-word',
                                                     overflowWrap: 'break-word',
-                                                    lineHeight: '1.2',
-                                                    maxWidth: `${constants.LABEL_WIDTH - 24}px`
+                                                    lineHeight: row.isProgramHeader ? '1.4' : '1.3', // Better line height for readability
+                                                    fontSize: row.isProgramHeader ? '0.9rem' : '0.85rem', // Slightly larger for headers
+                                                    maxWidth: `${constants.LABEL_WIDTH - 24}px`,
+                                                    minHeight: row.isProgramHeader ? '3rem' : 'auto' // Ensure minimum 3 lines space for headers
                                                 }}
                                             >
                                                 {row.project.displayName || row.project.PROJECT_NAME}
@@ -1349,8 +1378,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                     // COMPACT LAYOUT: Position Gantt bar using Program page's exact logic
                                     const milestoneLabelHeights = calculateMilestoneLabelHeight(processedMilestones, monthWidth);
                                     
-                                    // Position Gantt bar exactly like Program page
-                                    const ganttBarY = yOffset + Math.round(8 * 1.0) + milestoneLabelHeights.above;
+                                    // Position Gantt bar slightly higher for better visual alignment with left panel
+                                    const ganttBarY = yOffset + Math.round(4 * 1.0) + milestoneLabelHeights.above;
                                     const milestoneY = ganttBarY + Math.round(constants.BASE_BAR_HEIGHT / 2); // Center milestones with bar
                                     
                                     return (
