@@ -488,12 +488,31 @@ function processPortfolioDataFromOptimizedEndpoint(apiResponse) {
             
             // Combine all milestone types and filter for relevant ones
             const allMilestones = [...deploymentMilestones, ...otherMilestones];
+            
+            // DEBUG: Log all milestones for projects with 2026-01-23 dates
+            const has2026Jan23 = allMilestones.some(m => m.TASK_START?.includes('2026-01-23'));
+            if (has2026Jan23) {
+                console.log('🔍 MILESTONE DATA DEBUG - Found 2026-01-23 milestone:', {
+                    projectId: hierarchyRecord.CHILD_ID,
+                    totalMilestones: allMilestones.length,
+                    milestones: allMilestones.map(m => ({
+                        taskName: m.TASK_NAME,
+                        taskStart: m.TASK_START,
+                        status: m.MILESTONE_STATUS,
+                        hasTaskName: !!m.TASK_NAME,
+                        hasTaskStart: !!m.TASK_START,
+                        includesSG3: m.TASK_NAME?.toLowerCase().includes('sg3'),
+                        includesDeploy: m.TASK_NAME?.toLowerCase().includes('deploy')
+                    }))
+                });
+            }
+            
             const milestones = allMilestones
                 .filter(milestone => 
                     milestone.TASK_NAME && 
                     milestone.TASK_START && 
-                    (milestone.TASK_NAME.toLowerCase().includes('sg3') || 
-                     milestone.TASK_NAME.toLowerCase().includes('deploy'))
+                    (milestone.ROADMAP_ELEMENT?.includes('Milestones - Deployment') || 
+                     milestone.TASK_NAME.toLowerCase().includes('sg3'))
                 )
                 .map(milestone => ({
                     date: milestone.TASK_START,
@@ -1475,10 +1494,10 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
             milestoneData.forEach(milestone => {
                 milestones.push({
                     PROJECT_ID: projectId,
-                    MILESTONE_DATE: milestone.TASK_START,
+                    MILESTONE_DATE: milestone.MILESTONE_DATE, // Use MILESTONE_DATE from transformed object
                     MILESTONE_TYPE: 'SG3',
-                    MILESTONE_NAME: milestone.TASK_NAME,
-                    MILESTONE_STATUS: milestone.MILESTONE_STATUS
+                    MILESTONE_NAME: milestone.MILESTONE_NAME,
+                    MILESTONE_STATUS: milestone.STATUS
                 });
             });
         });

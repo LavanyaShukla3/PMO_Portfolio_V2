@@ -363,7 +363,20 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 const milestoneDate = parseDate(firstMilestoneInMonth.MILESTONE_DATE);
                 if (!milestoneDate) return;
 
+                // ENHANCED DEBUG: Log all parameters being passed to calculateMilestonePosition
+                console.log('🎯 MILESTONE CALCULATION:', {
+                    milestoneDateStr: firstMilestoneInMonth.MILESTONE_DATE,
+                    milestoneDateParsed: milestoneDate.toISOString(),
+                    startDate: startDate.toISOString(),
+                    monthWidth: monthWidth,
+                    projectEndDate: projectEndDate ? projectEndDate.toISOString() : 'null',
+                    milestoneMonth: milestoneDate.getMonth() + 1,
+                    milestoneYear: milestoneDate.getFullYear()
+                });
+
                 const x = calculateMilestonePosition(milestoneDate, startDate, monthWidth, projectEndDate);
+                
+                console.log('🎯 CALCULATED milestone x position:', x, 'px for date:', milestoneDate.toISOString(), '(Month index:', Math.floor(x / monthWidth), ')');
 
                 processedMilestones.push({
                     ...firstMilestoneInMonth,
@@ -1315,6 +1328,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                         return total + calculateBarHeight(p, processedMilestones, monthWidth) + ultraMinimalSpacing;
                                     }, topMargin);
                                 })()}
+                                overflow="visible"
                             >
                                 {validProjectRows.map((row, index) => {
                                     // Safety check for undefined rows
@@ -1340,7 +1354,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                     const processedMilestones = processMilestonesForProject(
                                         row.project.milestones || [], // Fix: Use milestones from project object
                                         startDate,
-                                        constants.MONTH_WIDTH,
+                                        monthWidth, // CRITICAL FIX: Use dynamic monthWidth instead of constants.MONTH_WIDTH
                                         projectEndDate,
                                         startDate,
                                         endDate
@@ -1364,7 +1378,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                             const prevProcessedMilestones = processMilestonesForProject(
                                                 p.project.milestones || [], // Fix: Use milestones from project object
                                                 startDate,
-                                                constants.MONTH_WIDTH,
+                                                monthWidth, // CRITICAL FIX: Use dynamic monthWidth instead of constants.MONTH_WIDTH
                                                 prevProjectEndDate,
                                                 startDate,
                                                 endDate
@@ -1493,9 +1507,13 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                             
                                             {/* Render Milestones using already processed milestone data */}
                                             {/* CRITICAL FIX: Don't render milestones for program headers */}
+                                            {!row.isProgramHeader && processedMilestones.length > 0 && console.log('🔵 About to render', processedMilestones.length, 'milestones for project:', row.PROJECT_NAME)}
                                             {!row.isProgramHeader && processedMilestones.map((milestone, milestoneIndex) => {
                                                 // COMPACT LAYOUT: Use the same milestoneY as calculated above for consistency
                                                 // This positions milestones to align with the compact Gantt bar position
+                                                
+                                                // DEBUG: Log ALL milestones being rendered
+                                                console.log('🎯 RENDERING milestone at x:', milestone.x, 'for date:', milestone.date?.toISOString?.() || milestone.date, 'project:', row.PROJECT_NAME, 'isProgramHeader:', row.isProgramHeader);
                                                 
                                                 return (
                                                     <MilestoneMarker

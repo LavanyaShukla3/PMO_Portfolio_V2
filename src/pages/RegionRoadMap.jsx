@@ -1050,6 +1050,7 @@ const RegionRoadMap = () => {
                                         <svg
                                             width={totalWidth}
                                             height={getTotalHeight()}
+                                            overflow="visible"
                                         >
                                             {/* iv. Simple line-based swimlanes for RegionGanttChart */}
                                             {/* Vertical month separator lines */}

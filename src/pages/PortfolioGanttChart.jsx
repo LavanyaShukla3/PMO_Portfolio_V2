@@ -91,6 +91,16 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
             const milestoneDate = parseDate(milestone.date);
             const x = calculateMilestonePosition(milestoneDate, timelineStartDate, monthWidth, projectEndDate);
 
+            // DEBUG: Log milestone positioning details
+            console.log(`🎯 Portfolio Milestone Position: "${milestone.label}" date=${milestone.date}`, {
+                parsedDate: milestoneDate?.toISOString(),
+                calculatedX: x,
+                monthWidth: monthWidth,
+                timelineStartDate: timelineStartDate?.toISOString(),
+                monthsDiff: Math.floor(x / monthWidth),
+                isFirstInMonth
+            });
+
             processedMilestones.push({
                 ...milestone,
                 x,
@@ -774,6 +784,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                                 display: 'block'
                             }}
                             className="block"
+                            overflow="visible"
                         >
                             {/* iii. Removed swimlanes from PortfolioGanttChart as requested */}
                             {getScaledFilteredData().map((project, index) => {
@@ -811,9 +822,12 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                                 const endX = calculatePosition(projectEndDate, startDate, dynamicMonthWidth);
                                 const width = endX - startX;
                                 
-                                console.log('📏 Position calculations:', {
+                                console.log('📏 Position calculations for', project.name, ':', {
                                     startX, endX, width, yOffset,
-                                    monthWidth: dynamicMonthWidth
+                                    monthWidth: dynamicMonthWidth,
+                                    projectStartDate: projectStartDate?.toISOString(),
+                                    projectEndDate: projectEndDate?.toISOString(),
+                                    timelineStartDate: startDate?.toISOString()
                                 });
 
                                 // Get detailed milestone label height breakdown

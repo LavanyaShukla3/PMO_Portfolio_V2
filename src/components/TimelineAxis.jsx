@@ -12,9 +12,18 @@ const TimelineAxis = ({
         const months = [];
         const totalMonths = Math.max(1, differenceInMonths(endDate, startDate) + 1);
         
+        // DEBUG: Log what months are actually being generated
+        console.log('🗓️ TimelineAxis generating months from:', startDate.toISOString());
+        
         for (let i = 0; i < totalMonths; i++) {
             const currentMonth = addMonths(startDate, i);
             const xPosition = i * monthWidth;
+            
+            // DEBUG: Log first 3 and months 7-9
+            if (i <= 2 || (i >= 7 && i <= 9)) {
+                console.log(`  TimelineAxis Month ${i}: ${format(currentMonth, 'MMM yyyy')} at ${xPosition}px`);
+            }
+            
             months.push({
                 date: currentMonth,
                 label: format(currentMonth, 'MMM yyyy'),

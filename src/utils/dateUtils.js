@@ -1,4 +1,4 @@
-import { parse, differenceInDays, addMonths, subMonths, startOfMonth, getMonth, getYear } from 'date-fns';
+import { parse, differenceInDays, addMonths, subMonths, startOfMonth, getMonth, getYear, format } from 'date-fns';
 
 // Milestone Layout Configuration: Enforcing strict rules for milestone display
 export const MILESTONE_LAYOUT_TYPE = 'vertical'; // Strict rule: vertical stacking for multiple milestones per month
@@ -275,7 +275,7 @@ export const truncateLabel = (label, hasAdjacentMilestones) => {
 };
 
 /**
- * Calculate X position for a milestone marker
+ * Calculate X position for a milestone marker using precise month-based positioning
  * When milestone falls on the end date of a bar, position it flush with the bar's right edge
  * @param {Date} date - Date to calculate position for
  * @param {Date} startDate - Timeline start date
@@ -289,13 +289,86 @@ export const calculateMilestonePosition = (date, startDate, monthWidth = MONTH_W
         return 0;
     }
 
-    const days = differenceInDays(date, startDate);
-    let position = Math.max(0, (days / 30.44) * monthWidth);
+    // Debug logging for June 2026 milestones
+    const dateStr = date.toISOString ? date.toISOString() : String(date);
+    const isJune2026 = dateStr.includes('2026-06') || (date.getFullYear && date.getFullYear() === 2026 && date.getMonth && date.getMonth() === 5);
+    if (isJune2026) {
+        console.log('🎯 DEBUG June 2026 Milestone Positioning:');
+        console.log('  - Input date:', dateStr, 'Year:', date.getFullYear(), 'Month:', date.getMonth(), 'Day:', date.getDate());
+        console.log('  - Start date:', startDate.toISOString ? startDate.toISOString() : String(startDate));
+        console.log('  - Start Year:', startDate.getFullYear(), 'Start Month:', startDate.getMonth());
+        console.log('  - Month width:', monthWidth);
+    }
+
+    // PRECISE POSITIONING: Use exact month boundaries instead of average days
+    // CRITICAL FIX: Use startOfMonth() to properly normalize dates and avoid timezone issues
+    const startMonth = startOfMonth(startDate);
+    const targetMonth = startOfMonth(date);
+    
+    // Calculate exact months difference
+    const monthsDiff = (targetMonth.getFullYear() - startMonth.getFullYear()) * 12 + 
+                      (targetMonth.getMonth() - startMonth.getMonth());
+    
+    // Calculate position within the target month
+    const daysIntoMonth = date.getDate() - 1; // 0-based day within month
+    const daysInTargetMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate();
+    
+    // Precise position calculation
+    let position = monthsDiff * monthWidth + (daysIntoMonth / daysInTargetMonth) * monthWidth;
+    position = Math.max(0, position);
+    
+    // Debug output for June 2026
+    if (isJune2026) {
+        console.log('  - Start month:', startMonth.toISOString());
+        console.log('  - Target month:', targetMonth.toISOString());
+        console.log('  - Target Year:', targetMonth.getFullYear(), 'Target Month (0-based):', targetMonth.getMonth());
+        console.log('  - Start Year:', startMonth.getFullYear(), 'Start Month (0-based):', startMonth.getMonth());
+        console.log('  - Year difference:', targetMonth.getFullYear() - startMonth.getFullYear(), 'years');
+        console.log('  - Month difference within year:', targetMonth.getMonth() - startMonth.getMonth());
+        console.log('  - Months difference:', monthsDiff);
+        console.log('  - Days into month:', daysIntoMonth, '(30th would be day 29)');
+        console.log('  - Days in target month:', daysInTargetMonth);
+        console.log('  - Position within month:', (daysIntoMonth / daysInTargetMonth) * monthWidth, 'px');
+        console.log('  - Final calculated position:', position, 'px');
+        console.log('  - This means: Start at month', monthsDiff, '* ', monthWidth, '=', monthsDiff * monthWidth, 'px, then add', (daysIntoMonth / daysInTargetMonth) * monthWidth, 'px for day', date.getDate());
+        
+        // Let's manually calculate where April 2026 would be
+        const april2026 = new Date(2026, 3, 30); // April 30, 2026
+        const aprilMonth = startOfMonth(april2026);
+        const aprilMonthsDiff = (aprilMonth.getFullYear() - startMonth.getFullYear()) * 12 + 
+                               (aprilMonth.getMonth() - startMonth.getMonth());
+        console.log('  - For comparison, April 2026 would be at month index:', aprilMonthsDiff, 'position:', aprilMonthsDiff * monthWidth, 'px');
+        
+        // Check what the timeline axis would show at this position
+        console.log('  - Timeline months from start (using our startMonth):');
+        console.log(`    Month 0: ${format(startMonth, 'MMM yyyy')} at position 0px`);
+        console.log(`    Month 1: ${format(addMonths(startMonth, 1), 'MMM yyyy')} at position ${monthWidth}px`);
+        console.log(`    Month 2: ${format(addMonths(startMonth, 2), 'MMM yyyy')} at position ${2 * monthWidth}px`);
+        for (let i = 7; i <= 11; i++) {
+            const monthDate = addMonths(startMonth, i);
+            console.log(`    Month ${i}: ${format(monthDate, 'MMM yyyy')} at position ${i * monthWidth}px`);
+        }
+        
+        // Check what TimelineAxis component would render (using original startDate)
+        console.log('  - Timeline months from start (using ORIGINAL startDate - what TimelineAxis renders):');
+        console.log(`    Month 0: ${format(startDate, 'MMM yyyy')} at position 0px`);
+        console.log(`    Month 1: ${format(addMonths(startDate, 1), 'MMM yyyy')} at position ${monthWidth}px`);
+        console.log(`    Month 2: ${format(addMonths(startDate, 2), 'MMM yyyy')} at position ${2 * monthWidth}px`);
+        for (let i = 7; i <= 11; i++) {
+            const monthDate = addMonths(startDate, i);
+            console.log(`    Month ${i}: ${format(monthDate, 'MMM yyyy')} at position ${i * monthWidth}px`);
+        }
+    }
     
     // ISSUE FIX: If milestone date equals bar end date, position it within the bar
     if (barEndDate && date.getTime() === barEndDate.getTime()) {
-        const barEndDays = differenceInDays(barEndDate, startDate);
-        const barEndPosition = Math.max(0, (barEndDays / 30.44) * monthWidth);
+        // Use the same precise calculation for bar end position
+        const barEndMonth = new Date(barEndDate.getFullYear(), barEndDate.getMonth(), 1);
+        const barEndMonthsDiff = (barEndMonth.getFullYear() - startMonth.getFullYear()) * 12 + 
+                                 (barEndMonth.getMonth() - startMonth.getMonth());
+        const barEndDaysIntoMonth = barEndDate.getDate() - 1;
+        const barEndDaysInTargetMonth = new Date(barEndMonth.getFullYear(), barEndMonth.getMonth() + 1, 0).getDate();
+        const barEndPosition = barEndMonthsDiff * monthWidth + (barEndDaysIntoMonth / barEndDaysInTargetMonth) * monthWidth;
         
         // Position milestone slightly inside the bar end (subtract half milestone width)
         const milestoneWidth = 14; // Approximate milestone diamond width
@@ -306,7 +379,7 @@ export const calculateMilestonePosition = (date, startDate, monthWidth = MONTH_W
 };
 
 /**
- * Calculates the x-position for a date on the timeline
+ * Calculates the x-position for a date on the timeline using precise month-based positioning
  * @param {Date} date - The date to position
  * @param {Date} startDate - Timeline start date
  * @param {number} monthWidth - Width per month in pixels (default: 100)
@@ -318,10 +391,39 @@ export const calculatePosition = (date, startDate, monthWidth = MONTH_WIDTH) => 
         return 0;
     }
 
-    const days = differenceInDays(date, startDate);
-    const position = Math.max(0, (days / 30.44) * monthWidth);
+    // Debug logging for June 2026 dates (for Gantt bars)
+    const dateStr = date.toISOString ? date.toISOString() : String(date);
+    if (dateStr.includes('2026-06')) {
+        console.log('📊 DEBUG June 2026 Gantt Bar Positioning:');
+        console.log('  - Input date:', dateStr);
+        console.log('  - Start date:', startDate.toISOString ? startDate.toISOString() : String(startDate));
+        console.log('  - Month width:', monthWidth);
+    }
 
-    return position;
+    // PRECISE POSITIONING: Use exact month boundaries instead of average days
+    // CRITICAL FIX: Use startOfMonth() to properly normalize dates and avoid timezone issues
+    const startMonth = startOfMonth(startDate);
+    const targetMonth = startOfMonth(date);
+    
+    // Calculate exact months difference
+    const monthsDiff = (targetMonth.getFullYear() - startMonth.getFullYear()) * 12 + 
+                      (targetMonth.getMonth() - startMonth.getMonth());
+    
+    // Calculate position within the target month
+    const daysIntoMonth = date.getDate() - 1; // 0-based day within month
+    const daysInTargetMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate();
+    
+    // Precise position calculation
+    const position = monthsDiff * monthWidth + (daysIntoMonth / daysInTargetMonth) * monthWidth;
+
+    // Debug output for June 2026
+    if (dateStr.includes('2026-06')) {
+        console.log('  - Months difference:', monthsDiff);
+        console.log('  - Position calculated:', position, 'px');
+        console.log('  - This should place it in month', monthsDiff, 'on the timeline');
+    }
+
+    return Math.max(0, position);
 };
 
 /**

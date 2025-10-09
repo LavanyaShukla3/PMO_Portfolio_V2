@@ -779,6 +779,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                 display: 'block'
                             }}
                             className="block"
+                            overflow="visible"
                         >
                             {getScaledFilteredData().map((project, index) => {
                                 // Calculate cumulative Y offset with ultra-minimal spacing to pack rows ultra-tightly
