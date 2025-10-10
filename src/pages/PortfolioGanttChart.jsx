@@ -49,7 +49,8 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
 
     // CRITICAL FIX: Filter milestones to only include those within the timeline viewport
     const timelineFilteredMilestones = milestones.filter(milestone => {
-        const milestoneDate = parseDate(milestone.date);
+        // DEBUG: Pass milestone label as context to parseDate
+        const milestoneDate = parseDate(milestone.date, milestone.label);
         if (!milestoneDate) return false;
 
         // Only include milestones that fall within the timeline range
@@ -88,7 +89,8 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
         monthMilestones.forEach((milestone, index) => {
             // STRICT RULE FIX: Only the first milestone in each month shows the labels AND the shape
             const isFirstInMonth = index === 0;
-            const milestoneDate = parseDate(milestone.date);
+            // DEBUG: Pass milestone label as context
+            const milestoneDate = parseDate(milestone.date, milestone.label);
             const x = calculateMilestonePosition(milestoneDate, timelineStartDate, monthWidth, projectEndDate);
 
             // DEBUG: Log milestone positioning details

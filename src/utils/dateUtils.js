@@ -21,36 +21,76 @@ const TOTAL_MONTHS = MONTHS_BEFORE + MONTHS_AFTER + 1; // +1 for current month
 export const parseDate = (dateString, context = '') => {
     if (!dateString) return null;
     
+    // DEBUG: Log all date parsing for Process Mining and Order Processing milestones
+    const debugMilestone = typeof dateString === 'string' && 
+        (context.includes('Process Mining DACH') || context.includes('Order Processing/PFNA DSD'));
+    
+    if (debugMilestone) {
+        console.log('🔍🔍🔍 PARSEDATE DEBUG:', {
+            input: dateString,
+            type: typeof dateString,
+            context: context,
+            isDateObject: dateString instanceof Date
+        });
+    }
+    
     // Handle different date formats
     try {
-        // First try to parse as a standard JavaScript date (includes GMT format)
-        // This handles formats like "2024-08-12", "2024-08-12T00:00:00.000Z", and "Tue, 10 Jan 2023 00:00:00 GMT"
-        const directParse = new Date(dateString);
-        if (!isNaN(directParse.getTime())) {
-            // console.log('✅ Successfully parsed date:', dateString, '→', directParse.toISOString(), context ? `[${context}]` : '');
-            return directParse;
+        // Check for DD-MM-YYYY format FIRST (before trying new Date())
+        // This prevents misinterpretation by JavaScript's Date parser
+        if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+            const parsedDate = parse(dateString, 'dd-MM-yyyy', new Date());
+            if (debugMilestone) {
+                console.log('✅ Parsed DD-MM-YYYY date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
+            }
+            return parsedDate;
+        }
+        
+        // Check if it looks like ISO format (YYYY-MM-DD) - handle explicitly
+        if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+            const parsedDate = parse(dateString, 'yyyy-MM-dd', new Date());
+            console.log('✅ Parsed ISO date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
+            return parsedDate;
         }
         
         // Legacy format: dd-MMM-yy (e.g., "12-Aug-24")
-        if (dateString.includes('-') && dateString.length <= 10) {
-            // Check if it looks like ISO format (YYYY-MM-DD)
-            if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
-                const parsedDate = parse(dateString, 'yyyy-MM-dd', new Date());
-                // console.log('✅ Parsed ISO date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
-                return parsedDate;
-            } else {
-                // Legacy dd-MMM-yy format
-                const parsedDate = parse(dateString, 'dd-MMM-yy', new Date());
-                // console.log('✅ Parsed legacy date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
-                return parsedDate;
-            }
-        } 
+        if (/^\d{2}-[A-Za-z]{3}-\d{2}$/.test(dateString)) {
+            const parsedDate = parse(dateString, 'dd-MMM-yy', new Date());
+            console.log('✅ Parsed dd-MMM-yy date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
+            return parsedDate;
+        }
         
         // MM/dd/yyyy format
         if (dateString.includes('/')) {
             const parsedDate = parse(dateString, 'MM/dd/yyyy', new Date());
-            // console.log('✅ Parsed MM/dd/yyyy date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
+            if (debugMilestone) {
+                console.log('✅ Parsed MM/dd/yyyy date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
+            }
             return parsedDate;
+        }
+        
+        // GMT format (e.g., "Wed, 31 Dec 2025 00:00:00 GMT")
+        // This format arrives when backend dates were incorrectly parsed
+        // We need to reject these and look at the original source data
+        if (dateString.includes('GMT') || dateString.match(/^[A-Z][a-z]{2}, \d{1,2} [A-Z][a-z]{2} \d{4}/)) {
+            if (debugMilestone) {
+                console.log('⚠️ WARNING: Received GMT format date (data already corrupted):', dateString, context ? `[${context}]` : '');
+            }
+            // Parse it anyway, but log the warning
+            const directParse = new Date(dateString);
+            if (!isNaN(directParse.getTime())) {
+                return directParse;
+            }
+        }
+        
+        // Only after checking specific formats, try standard JavaScript date parser
+        // This handles formats like "2024-08-12T00:00:00.000Z" and other ISO formats
+        const directParse = new Date(dateString);
+        if (!isNaN(directParse.getTime())) {
+            if (debugMilestone) {
+                console.log('✅ Successfully parsed date:', dateString, '→', directParse.toISOString(), context ? `[${context}]` : '');
+            }
+            return directParse;
         }
         
         console.warn('Unrecognized date format:', dateString, context ? `[${context}]` : '');

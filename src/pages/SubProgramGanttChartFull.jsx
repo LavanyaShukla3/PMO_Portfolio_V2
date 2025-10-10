@@ -110,8 +110,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             return [];
         }
         
-        // Apply hierarchical grouping BEFORE pagination
-        const hierarchicalData = selectedProgram === 'All' ? (() => {
+        // Apply hierarchical grouping BEFORE pagination - ALWAYS show parent + children
+        const hierarchicalData = (() => {
             const hierarchicalResult = [];
             
             // Group by program names
@@ -213,20 +213,16 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 totalItems: hierarchicalResult.length,
                 programHeaders: hierarchicalResult.filter(item => item.isProgramHeader).length,
                 childItems: hierarchicalResult.filter(item => item.isChildItem).length,
-                programGroups: Object.keys(programGroups).length
+                programGroups: Object.keys(programGroups).length,
+                selectedProgram: selectedProgram
             });
             
             return hierarchicalResult;
-        })() : filteredProjects;
+        })();
         
         // Smart pagination that repeats parent headers when needed
         const getSmartPaginatedData = (data, page, itemsPerPage) => {
-            if (selectedProgram !== 'All') {
-                // For specific program view, use regular pagination
-                return getPaginatedData(data, page, itemsPerPage);
-            }
-            
-            // For "All" view with hierarchical data, use smart pagination
+            // ALWAYS use smart pagination for hierarchical data (both "All" and specific program views)
             const startIndex = (page - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
             let paginatedSlice = data.slice(startIndex, endIndex);
@@ -291,13 +287,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             return isProjectInTimelineViewport(projectForFiltering, timelineStart, timelineEnd);
         });
 
-        // For "All" view, add hierarchical headers count
-        if (selectedProgram === 'All') {
-            const uniquePrograms = new Set(timelineFilteredProjects.map(p => p.COE_ROADMAP_PARENT_NAME || p.INV_FUNCTION || 'Unassigned')).size;
-            return timelineFilteredProjects.length + uniquePrograms;
-        }
-
-        return timelineFilteredProjects.length;
+        // ALWAYS add hierarchical headers count (for both "All" and specific program views)
+        const uniquePrograms = new Set(timelineFilteredProjects.map(p => p.COE_ROADMAP_PARENT_NAME || p.INV_FUNCTION || 'Unassigned')).size;
+        return timelineFilteredProjects.length + uniquePrograms;
     }, [data?.projects, selectedProgram, timelineView]);
 
     const scrollContainerRef = useRef(null);

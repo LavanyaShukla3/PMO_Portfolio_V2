@@ -100,12 +100,24 @@ function processRawApiData(apiResponse) {
                 inv.ROADMAP_ELEMENT && 
                 inv.ROADMAP_ELEMENT.includes('Milestones')
             )
-            .map(milestone => ({
-                date: milestone.TASK_START,
-                status: milestone.MILESTONE_STATUS,
-                label: milestone.TASK_NAME,
-                isSG3: milestone.ROADMAP_ELEMENT?.includes('SG3') || milestone.TASK_NAME?.includes('SG3')
-            }));
+            .map(milestone => {
+                // DEBUG: Log the raw TASK_START format
+                if (milestone.TASK_NAME?.includes('Process Mining DACH') || milestone.TASK_NAME?.includes('Order Processing/PFNA DSD')) {
+                    console.log('🔍 DEBUG Raw milestone data:', {
+                        label: milestone.TASK_NAME,
+                        rawTASK_START: milestone.TASK_START,
+                        typeOfTASK_START: typeof milestone.TASK_START,
+                        isDateObject: milestone.TASK_START instanceof Date
+                    });
+                }
+                
+                return {
+                    date: milestone.TASK_START,
+                    status: milestone.MILESTONE_STATUS,
+                    label: milestone.TASK_NAME,
+                    isSG3: milestone.ROADMAP_ELEMENT?.includes('SG3') || milestone.TASK_NAME?.includes('SG3')
+                };
+            });
 
         console.log('🎯 Milestones found for', investment.INV_EXT_ID, ':', milestones.length);
 
@@ -202,12 +214,24 @@ function processPortfolioDataFromFullDataset(apiResponse) {
                     inv.ROADMAP_ELEMENT && 
                     inv.ROADMAP_ELEMENT.includes('Milestones')
                 )
-                .map(milestone => ({
-                    date: milestone.TASK_START,
-                    status: milestone.MILESTONE_STATUS,
-                    label: milestone.TASK_NAME,
-                    isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
-                }));
+                .map(milestone => {
+                    // DEBUG: Log the raw TASK_START format for specific milestones
+                    if (milestone.TASK_NAME?.includes('Process Mining DACH') || milestone.TASK_NAME?.includes('Order Processing/PFNA DSD')) {
+                        console.log('🔍 DEBUG Raw milestone data (Portfolio):', {
+                            label: milestone.TASK_NAME,
+                            rawTASK_START: milestone.TASK_START,
+                            typeOfTASK_START: typeof milestone.TASK_START,
+                            isDateObject: milestone.TASK_START instanceof Date
+                        });
+                    }
+                    
+                    return {
+                        date: milestone.TASK_START,
+                        status: milestone.MILESTONE_STATUS,
+                        label: milestone.TASK_NAME,
+                        isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
+                    };
+                });
 
             // Create portfolio item (matching apiDataService.js structure)
             const portfolioData = {
