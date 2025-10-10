@@ -32,10 +32,10 @@ const getResponsiveConstants = () => {
 // Milestone label spacing constants (align with MilestoneMarker vertical label anchors)
 const LINE_HEIGHT = 12;
 const LABEL_PADDING = 2;
-// MilestoneMarker uses ~15px above and ~22px below from the bar center to first baseline
-// plus diamond centering; budget slightly more to be safe
-const ABOVE_LABEL_OFFSET = 18;
-const BELOW_LABEL_OFFSET = 25;
+// MilestoneMarker uses reduced spacing for compactness
+// Updated to match the new compact spacing in MilestoneMarker component
+const ABOVE_LABEL_OFFSET = 8;  // Reduced from 18 to 8 for compact spacing
+const BELOW_LABEL_OFFSET = 12; // Reduced from 25 to 12 for compact spacing
 
 // Note: truncateLabel and milestone constants are now imported from dateUtils.js
 
@@ -787,7 +787,7 @@ const RegionRoadMap = () => {
                                 {/* Sticky Project Names - Synchronized Scrolling */}
                                 <div
                                     ref={leftPanelScrollRef}
-                                    className="flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto"
+                                    className="flex-shrink-0 bg-white border-r border-gray-200"
                                     style={{
                                         minWidth: responsiveConstants.LABEL_WIDTH,
                                         width: 'auto',
@@ -795,6 +795,7 @@ const RegionRoadMap = () => {
                                         left: 0,
                                         zIndex: 10,
                                         height: '100%',
+                                        overflow: 'hidden',
                                     }}
                                     onScroll={handleLeftPanelScroll}
                                 >
