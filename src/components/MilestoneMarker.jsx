@@ -30,6 +30,9 @@ const MilestoneMarker = ({
     // CRITICAL FIX: New props to control positioning mode
     useTopAnchoring = false, // Whether to use top-anchoring instead of centering
     hasValidBar = false, // Whether the project has a valid Gantt bar
+    // NEW: Adaptive text anchoring for smarter label positioning
+    textAnchor = 'middle', // 'start', 'middle', or 'end' - controls label alignment
+    spanMonths = 0, // Number of months span for this label cluster
 }) => {
     // Zoom-responsive sizing - REDUCED: Smaller milestone markers
     const zoomScale = Math.max(0.5, Math.min(1.5, zoomLevel)); // Clamp zoom between 0.5 and 1.5
@@ -220,7 +223,7 @@ const MilestoneMarker = ({
                             y={labelPosition === 'below'
                                 ? finalY + finalVerticalOffset + size + (isMobile ? 25 : 22) // Below marker - increased spacing
                                 : finalY + finalVerticalOffset - (isMobile ? 17 : 15)} // Above marker - reduced spacing
-                            textAnchor="middle"
+                            textAnchor={textAnchor}
                             className="text-l fill-gray-600"
                             style={{
                                 fontSize: fontSize,
@@ -240,7 +243,7 @@ const MilestoneMarker = ({
                             y={labelPosition === 'below'
                                 ? finalY + finalVerticalOffset + size + (isMobile ? 25 : 22) + (index * lineHeight) // Below marker, stacked down - increased spacing
                                 : finalY + finalVerticalOffset - (isMobile ? 17 : 15) - ((verticalLabels.length - 1 - index) * lineHeight)} // Above marker, stacked up - reduced spacing
-                            textAnchor="middle"
+                            textAnchor={textAnchor}
                             className="text-l fill-gray-600"
                             style={{
                                 fontSize: fontSize,

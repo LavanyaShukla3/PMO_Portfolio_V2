@@ -448,16 +448,21 @@ export const createHorizontalMilestoneLabel = (monthMilestones, maxWidth, fontSi
  * @param {number} maxWidth - Maximum width in pixels (cluster-based, not fixed 2 months)
  * @param {string} fontSize - Font size for width calculation
  * @param {Array} allProjectMilestones - All milestones in project for intelligent sizing
- * @returns {Array} Array of individual milestone label strings for vertical stacking
+ * @returns {Object} Object with:
+ *   - labels: Array of individual milestone label strings for vertical stacking
+ *   - textAnchor: 'start', 'middle', or 'end' for adaptive text positioning
+ *   - spanMonths: Number of months span for this cluster
  */
 export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSize = '14px', allProjectMilestones = null, currentMonthWidth = 100) => {
-    if (!monthMilestones?.length) return [];
+    if (!monthMilestones?.length) return { labels: [], textAnchor: 'middle', spanMonths: 0 };
 
     // Task 2: Remove date from milestone marker where there is just one milestone in the month
     const isSingleMilestone = monthMilestones.length === 1;
 
     // ENHANCED: Calculate intelligent max width based on alternating row system
     let effectiveMaxWidth = maxWidth;
+    let textAnchor = 'middle'; // Default to center-align
+    let spanMonths = 0;
     
     
     if (allProjectMilestones?.length > 1) {
@@ -501,31 +506,80 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 .sort((a, b) => a.parsedDate - b.parsedDate)[0];
             
             
-            // Calculate available space between same-row neighbors
+            // ADAPTIVE TEXT ANCHORING: Maximize label length by choosing optimal anchor point
+            // Key insight: Labels don't have to be centered - they can start earlier!
+            // 
+            // Strategy:
+            // - No left neighbor: Use text-anchor="end" (right-align to marker) → extends LEFT from marker
+            // - No right neighbor: Use text-anchor="start" (left-align to marker) → extends RIGHT from marker  
+            // - Both neighbors: Use text-anchor="middle" (center on marker) → balanced extension
+            //
+            // This allows "Process Mining/UK/Poland" to start much earlier and fit more characters!
+            
+            // SMART COLLISION AVOIDANCE: Calculate actual available space between neighbors
             let spanMonths;
+            let textAnchor; // 'start', 'middle', or 'end'
+            const SAFETY_MARGIN = 0.15; // 15% safety margin to prevent collision
+            
+            // Debug info for first milestone in month
+            const firstMilestoneLabel = monthMilestones[0]?.label || 'Unknown';
+            
             if (!leftNeighbor && !rightNeighbor) {
                 // Redundant with sameRowMilestones.length === 0, but keep safe default
-                spanMonths = 24; // Very generous space
+                spanMonths = 12; // Generous but not excessive
+                textAnchor = 'middle';
+                console.log(`📍 [${firstMilestoneLabel}] SOLO - ${spanMonths.toFixed(1)} months`);
             } else if (!leftNeighbor) {
-                // Only right neighbor exists: allow approximately double the right span
+                // NO LEFT NEIGHBOR: Can extend left freely, limited by right neighbor
+                // Use RIGHT-ALIGN (text-anchor="end") - Label extends LEFTWARD from marker
                 const rightSpan = (rightNeighbor.parsedDate - currentMilestoneDate) / (1000 * 60 * 60 * 24 * 30.44);
-                spanMonths = Math.min(Math.max(2, rightSpan * 2), 24);
+                
+                // Allow extension up to the right neighbor with safety margin
+                spanMonths = rightSpan * (1 - SAFETY_MARGIN);
+                textAnchor = 'end'; // Right-align: label extends LEFT
+                console.log(`📍 [${firstMilestoneLabel}] NO LEFT - extend to RIGHT neighbor (${rightSpan.toFixed(1)}mo) = ${spanMonths.toFixed(1)} months`);
+                
             } else if (!rightNeighbor) {
-                // Only left neighbor exists: allow approximately double the left span
+                // NO RIGHT NEIGHBOR: Can extend right freely, limited by left neighbor  
+                // Use LEFT-ALIGN (text-anchor="start") - Label extends RIGHTWARD from marker
                 const leftSpan = (currentMilestoneDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
-                spanMonths = Math.min(Math.max(2, leftSpan * 2), 24);
+                
+                // Allow generous extension to the right (no right constraint)
+                // Use left span as indicator of density, but allow more right extension
+                spanMonths = Math.max(leftSpan * (1 - SAFETY_MARGIN), 8); // Minimum 8 months to the right
+                textAnchor = 'start'; // Left-align: label extends RIGHT
+                console.log(`📍 [${firstMilestoneLabel}] NO RIGHT - extend from LEFT neighbor (${leftSpan.toFixed(1)}mo) = ${spanMonths.toFixed(1)} months`);
+                
             } else {
-                // Both neighbors exist: use 90% of total span between them
-                const totalSpan = (rightNeighbor.parsedDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
-                spanMonths = Math.min(Math.max(2, totalSpan * 0.9), 24);
+                // BOTH NEIGHBORS: Calculate available space between them
+                // Use CENTER-ALIGN (text-anchor="middle") - Label extends both ways from center
+                const leftSpan = (currentMilestoneDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
+                const rightSpan = (rightNeighbor.parsedDate - currentMilestoneDate) / (1000 * 60 * 60 * 24 * 30.44);
+                const totalSpace = leftSpan + rightSpan;
+                
+                // Available space = distance between neighbors minus safety margins on both sides
+                // Since label is centered, it can extend (totalSpace / 2) in each direction
+                const availableSpace = totalSpace * (1 - SAFETY_MARGIN);
+                spanMonths = availableSpace;
+                textAnchor = 'middle'; // Center-align: label extends BOTH ways
+                console.log(`📍 [${firstMilestoneLabel}] BOTH - space between (L:${leftSpan.toFixed(1)}, R:${rightSpan.toFixed(1)}, total:${totalSpace.toFixed(1)}) = ${spanMonths.toFixed(1)} months`);
+                
             }
 
             effectiveMaxWidth = spanMonths * currentMonthWidth;
+            
+            // Store text anchor metadata for ALL milestones in this month
+            // Components should check milestone._textAnchor to position labels correctly
+            monthMilestones.forEach(milestone => {
+                milestone._textAnchor = textAnchor;
+                milestone._availableWidth = effectiveMaxWidth;
+                milestone._spanMonths = spanMonths;
+            });
         }
     }
     
 
-    return monthMilestones.map((milestone, index) => {
+    const labelArray = monthMilestones.map((milestone, index) => {
         let label;
         if (isSingleMilestone) {
             // Task 2: Single milestone - no date prefix
@@ -545,6 +599,13 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
         const result = truncateTextToWidth(label, effectiveMaxWidth, fontSize);
         return result;
     });
+
+    // Return object with labels and metadata
+    return {
+        labels: labelArray,
+        textAnchor: textAnchor,
+        spanMonths: spanMonths
+    };
 };
 
 /**
@@ -586,9 +647,9 @@ export const getMonthlyLabelPosition = (monthKey) => {
  * @returns {number} Approximate width in pixels
  */
 export const calculateTextWidth = (text, fontSize = '14px') => {
-    // Approximate character width based on font size
+    // OPTIMIZED character width for system fonts (0.45 multiplier)
     const baseFontSize = parseInt(fontSize);
-    const avgCharWidth = baseFontSize * 0.6; // Rough approximation for system fonts
+    const avgCharWidth = baseFontSize * 0.45; // 6.3px per char for 14px font
     return text.length * avgCharWidth;
 };
 
@@ -603,9 +664,11 @@ export const truncateTextToWidth = (text, maxWidth, fontSize = '14px') => {
     if (!text) return '';
 
 
-    // Improved character width estimation based on common milestone text patterns
+    // OPTIMIZED character width estimation for system fonts
+    // Real testing shows system-ui fonts are narrower than 0.55
+    // Using 0.45 allows ~20% more characters before truncation
     const baseFontSize = parseInt(fontSize);
-    const avgCharWidth = baseFontSize * 0.55; // Slightly more accurate for typical text
+    const avgCharWidth = baseFontSize * 0.45; // 6.3px per char for 14px font (was 7.7px)
     
     const fullWidth = text.length * avgCharWidth;
     

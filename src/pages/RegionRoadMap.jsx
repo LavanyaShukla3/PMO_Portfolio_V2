@@ -76,13 +76,16 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
         // RULE 1: One milestone label per month with alternating positions
         // RULE 2: Multiple milestones stacked vertically with intelligent width calculation
         
-        const verticalLabels = createVerticalMilestoneLabels(
+        const verticalLabelData = createVerticalMilestoneLabels(
             monthMilestones,
             maxInitialWidth,
             '14px',
             timelineFilteredMilestones,
             monthWidth
         );
+        const verticalLabels = verticalLabelData.labels;
+        const textAnchor = verticalLabelData.textAnchor;
+        const spanMonths = verticalLabelData.spanMonths;
         const horizontalLabel = ''; // Disabled to enforce strict vertical stacking
 
 
@@ -112,7 +115,11 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
                 fullLabel: milestone.label, // Keep original label for tooltips
                 shouldRenderShape: isFirstInMonth, // NEW: Only render shape for first milestone in month
                 allMilestonesInProject: milestones, // Pass all milestones for ±4 months check
-                currentMilestoneDate: milestoneDate // Pass current date for proximity check
+                currentMilestoneDate: milestoneDate, // Pass current date for proximity check
+                // NEW: Adaptive text anchoring metadata
+                textAnchor: textAnchor, // 'start', 'middle', or 'end'
+                spanMonths: spanMonths, // Number of months span
+
             });
         });
     });

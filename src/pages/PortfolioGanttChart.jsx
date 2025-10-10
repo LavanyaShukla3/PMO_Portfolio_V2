@@ -73,13 +73,18 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
 
         // Calculate vertical, row-aware labels for this month using all in-viewport milestones
         const maxInitialWidth = monthWidth * 8; // generous initial width (up to 8 months)
-        const verticalLabelsForMonth = createVerticalMilestoneLabels(
+        const verticalLabelData = createVerticalMilestoneLabels(
             monthMilestones,
             maxInitialWidth,
             '14px',
             timelineFilteredMilestones,
             monthWidth
         );
+        
+        // Extract labels and metadata
+        const verticalLabelsForMonth = verticalLabelData.labels;
+        const textAnchor = verticalLabelData.textAnchor;
+        const spanMonths = verticalLabelData.spanMonths;
 
         // Process each milestone in the month
         monthMilestones.forEach((milestone, index) => {
@@ -108,7 +113,9 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
                 shouldRenderShape: isFirstInMonth,
                 allMilestonesInProject: milestones,
                 currentMilestoneDate: milestone.date,
-                // Removed smart-stretch metadata; labels are generated per-month above
+                // NEW: Adaptive text anchoring metadata
+                textAnchor: textAnchor, // 'start', 'middle', or 'end'
+                spanMonths: spanMonths, // Number of months span
             });
         });
     });

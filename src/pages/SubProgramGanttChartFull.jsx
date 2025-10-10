@@ -336,13 +336,16 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     label: m.MILESTONE_NAME || m.TASK_NAME || 'Milestone'
                 }));
                 const maxInitialWidth = monthWidth * 8;
-                const verticalLabels = createVerticalMilestoneLabels(
+                const verticalLabelData = createVerticalMilestoneLabels(
                     monthMilestonesNormalized,
                     maxInitialWidth,
                     '14px',
                     allMilestonesNormalized,
                     monthWidth
                 );
+                const verticalLabels = verticalLabelData.labels;
+                const textAnchor = verticalLabelData.textAnchor;
+                const spanMonths = verticalLabelData.spanMonths;
 
                 // Step 3: Create a single, consolidated milestone marker for the month.
                 const firstMilestoneInMonth = monthMilestones[0];
@@ -376,7 +379,10 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     groupLabels: monthMilestones.length > 1 ? verticalLabels : [],
                     monthlyLabels: [],
                     allMilestonesInProject: milestones,
-                    currentMilestoneDate: milestoneDate
+                    currentMilestoneDate: milestoneDate,
+                    // NEW: Adaptive text anchoring metadata
+                    textAnchor: textAnchor,
+                    spanMonths: spanMonths,
                 });
             });
 
@@ -546,13 +552,14 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     label: m.MILESTONE_NAME || m.TASK_NAME || 'Milestone'
                 }));
 
-                const verticalLabels = createVerticalMilestoneLabels(
+                const verticalLabelData = createVerticalMilestoneLabels(
                     monthMilestonesNormalized,
                     monthWidth * 8,
                     '14px',
                     allMilestonesNormalized,
                     monthWidth
                 );
+                const verticalLabels = verticalLabelData.labels;
 
                 const lineCount = Array.isArray(verticalLabels) ? verticalLabels.filter(l => l && l.trim()).length : 0;
                 const labelHeight = lineCount * LINE_HEIGHT;
