@@ -268,8 +268,8 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         ? allData 
         : allData.filter(item => item.parentName === selectedProgram);
 
-    // Apply hierarchical grouping BEFORE pagination (for "All" view)
-    const hierarchicalData = selectedProgram === 'All' ? (() => {
+    // Apply hierarchical grouping BEFORE pagination - ALWAYS show parent + children
+    const hierarchicalData = (() => {
         const hierarchicalResult = [];
         
         // Group by program names
@@ -316,13 +316,22 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                     ...child,
                     isChildItem: true,
                     displayName: `   ${child.name}`, // Indent with spaces
-                    originalName: child.name
+                    originalName: child.name,
+                    parentId: group.program.id // Ensure parentId is set for smart pagination
                 });
             });
         });
         
+        console.log('🎯 PROGRAM HIERARCHICAL DATA:', {
+            totalItems: hierarchicalResult.length,
+            programHeaders: hierarchicalResult.filter(item => item.isProgramHeader).length,
+            childItems: hierarchicalResult.filter(item => item.isChildItem).length,
+            programGroups: Object.keys(programGroups).length,
+            selectedProgram: selectedProgram
+        });
+        
         return hierarchicalResult;
-    })() : filteredData;
+    })();
 
     // Apply timeline filtering BEFORE pagination
     const timelineFilteredData = hierarchicalData.filter(project => 
@@ -334,12 +343,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
 
     // Smart pagination that repeats parent headers when children span multiple pages
     const getSmartPaginatedData = (data, page, itemsPerPage) => {
-        if (selectedProgram !== 'All') {
-            // For specific program view, use regular pagination
-            return getPaginatedData(data, page, itemsPerPage);
-        }
-        
-        // For "All" view with hierarchical data, use smart pagination
+        // ALWAYS use smart pagination for hierarchical data (both "All" and specific program views)
         const startIndex = (page - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
         let paginatedSlice = data.slice(startIndex, endIndex);
@@ -362,6 +366,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                 );
                 
                 if (childrenBelongToParent) {
+                    console.log('🎯 PROGRAM SMART PAGINATION: Adding parent header', parentHeader.displayName, 'to page', page);
                     // Add the parent header at the beginning of the page
                     paginatedSlice = [parentHeader, ...paginatedSlice];
                     
