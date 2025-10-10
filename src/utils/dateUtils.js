@@ -21,18 +21,7 @@ const TOTAL_MONTHS = MONTHS_BEFORE + MONTHS_AFTER + 1; // +1 for current month
 export const parseDate = (dateString, context = '') => {
     if (!dateString) return null;
     
-    // DEBUG: Log all date parsing for Process Mining and Order Processing milestones
-    const debugMilestone = typeof dateString === 'string' && 
-        (context.includes('Process Mining DACH') || context.includes('Order Processing/PFNA DSD'));
-    
-    if (debugMilestone) {
-        console.log('🔍🔍🔍 PARSEDATE DEBUG:', {
-            input: dateString,
-            type: typeof dateString,
-            context: context,
-            isDateObject: dateString instanceof Date
-        });
-    }
+
     
     // Handle different date formats
     try {
@@ -40,32 +29,26 @@ export const parseDate = (dateString, context = '') => {
         // This prevents misinterpretation by JavaScript's Date parser
         if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
             const parsedDate = parse(dateString, 'dd-MM-yyyy', new Date());
-            if (debugMilestone) {
-                console.log('✅ Parsed DD-MM-YYYY date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
-            }
+            
             return parsedDate;
         }
         
         // Check if it looks like ISO format (YYYY-MM-DD) - handle explicitly
         if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
             const parsedDate = parse(dateString, 'yyyy-MM-dd', new Date());
-            console.log('✅ Parsed ISO date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
             return parsedDate;
         }
         
         // Legacy format: dd-MMM-yy (e.g., "12-Aug-24")
         if (/^\d{2}-[A-Za-z]{3}-\d{2}$/.test(dateString)) {
             const parsedDate = parse(dateString, 'dd-MMM-yy', new Date());
-            console.log('✅ Parsed dd-MMM-yy date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
             return parsedDate;
         }
         
         // MM/dd/yyyy format
         if (dateString.includes('/')) {
             const parsedDate = parse(dateString, 'MM/dd/yyyy', new Date());
-            if (debugMilestone) {
-                console.log('✅ Parsed MM/dd/yyyy date:', dateString, '→', parsedDate.toISOString(), context ? `[${context}]` : '');
-            }
+            
             return parsedDate;
         }
         
@@ -73,9 +56,7 @@ export const parseDate = (dateString, context = '') => {
         // This format arrives when backend dates were incorrectly parsed
         // We need to reject these and look at the original source data
         if (dateString.includes('GMT') || dateString.match(/^[A-Z][a-z]{2}, \d{1,2} [A-Z][a-z]{2} \d{4}/)) {
-            if (debugMilestone) {
-                console.log('⚠️ WARNING: Received GMT format date (data already corrupted):', dateString, context ? `[${context}]` : '');
-            }
+            
             // Parse it anyway, but log the warning
             const directParse = new Date(dateString);
             if (!isNaN(directParse.getTime())) {
@@ -87,9 +68,7 @@ export const parseDate = (dateString, context = '') => {
         // This handles formats like "2024-08-12T00:00:00.000Z" and other ISO formats
         const directParse = new Date(dateString);
         if (!isNaN(directParse.getTime())) {
-            if (debugMilestone) {
-                console.log('✅ Successfully parsed date:', dateString, '→', directParse.toISOString(), context ? `[${context}]` : '');
-            }
+            
             return directParse;
         }
         
@@ -282,10 +261,11 @@ export const isProjectInTimelineViewport = (project, timelineStart, timelineEnd)
         }
     }
 
-    // Check milestone dates
+    // Check milestone dates - support both 'date' and 'MILESTONE_DATE' field names
     if (project.milestones && project.milestones.length > 0) {
         for (const milestone of project.milestones) {
-            const milestoneDate = parseDate(milestone.date);
+            // Try both field names (different components use different formats)
+            const milestoneDate = parseDate(milestone.date || milestone.MILESTONE_DATE);
             
             if (milestoneDate) {
                 if (milestoneDate >= timelineStart && milestoneDate <= timelineEnd) {
@@ -325,20 +305,12 @@ export const truncateLabel = (label, hasAdjacentMilestones) => {
  */
 export const calculateMilestonePosition = (date, startDate, monthWidth = MONTH_WIDTH, barEndDate = null) => {
     if (!date || !startDate) {
-        console.warn('❌ Missing date or startDate:', { date, startDate });
         return 0;
     }
 
     // Debug logging for June 2026 milestones
     const dateStr = date.toISOString ? date.toISOString() : String(date);
     const isJune2026 = dateStr.includes('2026-06') || (date.getFullYear && date.getFullYear() === 2026 && date.getMonth && date.getMonth() === 5);
-    if (isJune2026) {
-        console.log('🎯 DEBUG June 2026 Milestone Positioning:');
-        console.log('  - Input date:', dateStr, 'Year:', date.getFullYear(), 'Month:', date.getMonth(), 'Day:', date.getDate());
-        console.log('  - Start date:', startDate.toISOString ? startDate.toISOString() : String(startDate));
-        console.log('  - Start Year:', startDate.getFullYear(), 'Start Month:', startDate.getMonth());
-        console.log('  - Month width:', monthWidth);
-    }
 
     // PRECISE POSITIONING: Use exact month boundaries instead of average days
     // CRITICAL FIX: Use startOfMonth() to properly normalize dates and avoid timezone issues
@@ -357,48 +329,7 @@ export const calculateMilestonePosition = (date, startDate, monthWidth = MONTH_W
     let position = monthsDiff * monthWidth + (daysIntoMonth / daysInTargetMonth) * monthWidth;
     position = Math.max(0, position);
     
-    // Debug output for June 2026
-    if (isJune2026) {
-        console.log('  - Start month:', startMonth.toISOString());
-        console.log('  - Target month:', targetMonth.toISOString());
-        console.log('  - Target Year:', targetMonth.getFullYear(), 'Target Month (0-based):', targetMonth.getMonth());
-        console.log('  - Start Year:', startMonth.getFullYear(), 'Start Month (0-based):', startMonth.getMonth());
-        console.log('  - Year difference:', targetMonth.getFullYear() - startMonth.getFullYear(), 'years');
-        console.log('  - Month difference within year:', targetMonth.getMonth() - startMonth.getMonth());
-        console.log('  - Months difference:', monthsDiff);
-        console.log('  - Days into month:', daysIntoMonth, '(30th would be day 29)');
-        console.log('  - Days in target month:', daysInTargetMonth);
-        console.log('  - Position within month:', (daysIntoMonth / daysInTargetMonth) * monthWidth, 'px');
-        console.log('  - Final calculated position:', position, 'px');
-        console.log('  - This means: Start at month', monthsDiff, '* ', monthWidth, '=', monthsDiff * monthWidth, 'px, then add', (daysIntoMonth / daysInTargetMonth) * monthWidth, 'px for day', date.getDate());
-        
-        // Let's manually calculate where April 2026 would be
-        const april2026 = new Date(2026, 3, 30); // April 30, 2026
-        const aprilMonth = startOfMonth(april2026);
-        const aprilMonthsDiff = (aprilMonth.getFullYear() - startMonth.getFullYear()) * 12 + 
-                               (aprilMonth.getMonth() - startMonth.getMonth());
-        console.log('  - For comparison, April 2026 would be at month index:', aprilMonthsDiff, 'position:', aprilMonthsDiff * monthWidth, 'px');
-        
-        // Check what the timeline axis would show at this position
-        console.log('  - Timeline months from start (using our startMonth):');
-        console.log(`    Month 0: ${format(startMonth, 'MMM yyyy')} at position 0px`);
-        console.log(`    Month 1: ${format(addMonths(startMonth, 1), 'MMM yyyy')} at position ${monthWidth}px`);
-        console.log(`    Month 2: ${format(addMonths(startMonth, 2), 'MMM yyyy')} at position ${2 * monthWidth}px`);
-        for (let i = 7; i <= 11; i++) {
-            const monthDate = addMonths(startMonth, i);
-            console.log(`    Month ${i}: ${format(monthDate, 'MMM yyyy')} at position ${i * monthWidth}px`);
-        }
-        
-        // Check what TimelineAxis component would render (using original startDate)
-        console.log('  - Timeline months from start (using ORIGINAL startDate - what TimelineAxis renders):');
-        console.log(`    Month 0: ${format(startDate, 'MMM yyyy')} at position 0px`);
-        console.log(`    Month 1: ${format(addMonths(startDate, 1), 'MMM yyyy')} at position ${monthWidth}px`);
-        console.log(`    Month 2: ${format(addMonths(startDate, 2), 'MMM yyyy')} at position ${2 * monthWidth}px`);
-        for (let i = 7; i <= 11; i++) {
-            const monthDate = addMonths(startDate, i);
-            console.log(`    Month ${i}: ${format(monthDate, 'MMM yyyy')} at position ${i * monthWidth}px`);
-        }
-    }
+    
     
     // ISSUE FIX: If milestone date equals bar end date, position it within the bar
     if (barEndDate && date.getTime() === barEndDate.getTime()) {
@@ -427,19 +358,10 @@ export const calculateMilestonePosition = (date, startDate, monthWidth = MONTH_W
  */
 export const calculatePosition = (date, startDate, monthWidth = MONTH_WIDTH) => {
     if (!date || !startDate) {
-        console.warn('❌ Missing date or startDate:', { date, startDate });
         return 0;
     }
 
-    // Debug logging for June 2026 dates (for Gantt bars)
-    const dateStr = date.toISOString ? date.toISOString() : String(date);
-    if (dateStr.includes('2026-06')) {
-        console.log('📊 DEBUG June 2026 Gantt Bar Positioning:');
-        console.log('  - Input date:', dateStr);
-        console.log('  - Start date:', startDate.toISOString ? startDate.toISOString() : String(startDate));
-        console.log('  - Month width:', monthWidth);
-    }
-
+   
     // PRECISE POSITIONING: Use exact month boundaries instead of average days
     // CRITICAL FIX: Use startOfMonth() to properly normalize dates and avoid timezone issues
     const startMonth = startOfMonth(startDate);
@@ -456,12 +378,6 @@ export const calculatePosition = (date, startDate, monthWidth = MONTH_WIDTH) => 
     // Precise position calculation
     const position = monthsDiff * monthWidth + (daysIntoMonth / daysInTargetMonth) * monthWidth;
 
-    // Debug output for June 2026
-    if (dateStr.includes('2026-06')) {
-        console.log('  - Months difference:', monthsDiff);
-        console.log('  - Position calculated:', position, 'px');
-        console.log('  - This should place it in month', monthsDiff, 'on the timeline');
-    }
 
     return Math.max(0, position);
 };

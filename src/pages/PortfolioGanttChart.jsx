@@ -56,14 +56,10 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
         // Only include milestones that fall within the timeline range
         const isWithinTimeline = milestoneDate >= timelineStartDate && milestoneDate <= timelineEndDate;
 
-        if (!isWithinTimeline) {
-            console.log('🚫 Excluding milestone outside timeline:', milestone.label, milestoneDate.toISOString());
-        }
 
         return isWithinTimeline;
     });
 
-    console.log(`🎯 Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
 
     // Group filtered milestones by month for positioning logic
     const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones);
@@ -92,16 +88,6 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
             // DEBUG: Pass milestone label as context
             const milestoneDate = parseDate(milestone.date, milestone.label);
             const x = calculateMilestonePosition(milestoneDate, timelineStartDate, monthWidth, projectEndDate);
-
-            // DEBUG: Log milestone positioning details
-            console.log(`🎯 Portfolio Milestone Position: "${milestone.label}" date=${milestone.date}`, {
-                parsedDate: milestoneDate?.toISOString(),
-                calculatedX: x,
-                monthWidth: monthWidth,
-                timelineStartDate: timelineStartDate?.toISOString(),
-                monthsDiff: Math.floor(x / monthWidth),
-                isFirstInMonth
-            });
 
             processedMilestones.push({
                 ...milestone,
@@ -155,9 +141,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
 
     // Get timeline range based on selected view
     const { startDate, endDate } = getTimelineRangeForView(timelineView);
-    console.log('� Responsive constants:', responsiveConstants);
-    console.log('�📅 Timeline view:', timelineView);
-    console.log('�📅 Timeline range:', startDate?.toISOString(), 'to', endDate?.toISOString());
     
     // Calculate total months dynamically based on selected timeline
     const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
@@ -166,12 +149,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     const availableGanttWidth = window.innerWidth - responsiveConstants.LABEL_WIDTH - 40; // 40px for margins/padding
     const dynamicMonthWidth = Math.max(30, Math.floor(availableGanttWidth / totalMonths)); // Minimum 30px per month
     
-    console.log('📐 Dynamic sizing:', {
-        totalMonths,
-        availableGanttWidth,
-        dynamicMonthWidth,
-        viewportWidth: window.innerWidth
-    });
 
     // Handle window resize - recalculate both responsive constants and force re-render for dynamic spacing
     useEffect(() => {
@@ -191,7 +168,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
 
     // Timeline view change handler
     const handleTimelineViewChange = (newView) => {
-        console.log('📅 Timeline view changed to:', newView);
         setTimelineView(newView);
     };
 
@@ -202,7 +178,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     // Use cached data instead of making API calls
     useEffect(() => {
         if (portfolioData && portfolioData.data) {
-            console.log('✅ Using cached portfolio data:', portfolioData);
             setAllData(portfolioData.data);
             setCurrentPage(1);
             setLoading(false);
@@ -233,10 +208,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
 
     // UPDATED: No horizontal scroll restoration needed in fixed-width layout
     useEffect(() => {
-        if (!loading) {
-            console.log('📊 Data loaded, fixed-width layout ready');
-            // No scroll restoration needed since we don't have horizontal scrolling
-        }
     }, [allData, loading]); // Runs when data changes and loading stops
 
     // Create a mapping of portfolio IDs to their names from the data
@@ -276,15 +247,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         } else if (programData && programData.projects && Array.isArray(programData.projects)) {
             programArray = programData.projects;
         }
-        
-        console.log('🔍 Program data structure analysis:', {
-            programDataType: typeof programData,
-            isArray: Array.isArray(programData),
-            hasDataProperty: programData?.data ? 'yes' : 'no',
-            hasProjectsProperty: programData?.projects ? 'yes' : 'no',
-            programArrayLength: programArray?.length || 0,
-            programDataKeys: programData ? Object.keys(programData) : 'null'
-        });
+
         
         if (programArray && programArray.length > 0) {
             programArray.forEach(item => {
@@ -295,7 +258,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                 }
             });
             
-            console.log('🎯 Found program parent IDs:', Array.from(ids));
         }
         
         return ids;
@@ -308,51 +270,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     item.CHILD_ID && 
                     programParentIds.has(item.CHILD_ID)
     }));
-
-    console.log('🎯 DRILL-THROUGH DEBUG - Raw Data Analysis:', {
-        portfolioDataExists: !!portfolioData,
-        portfolioDataLength: portfolioData?.data?.length || 0,
-        programDataExists: !!programData,
-        programDataLength: Array.isArray(programData) ? programData.length : 'Not array',
-        programDataType: typeof programData,
-        samplePortfolioItem: allData?.[0] || 'No data',
-        sampleProgramItem: Array.isArray(programData) ? programData[0] : 'No program data'
-    });
-
-    console.log('🎯 DRILL-THROUGH DEBUG - Program Parent IDs:', {
-        programParentIdsSize: programParentIds.size,
-        programParentIds: Array.from(programParentIds),
-        programDataSample: Array.isArray(programData) ? programData.slice(0, 3).map(item => ({
-            id: item.id,
-            parentId: item.parentId,
-            COE_ROADMAP_PARENT_ID: item.COE_ROADMAP_PARENT_ID,
-            isProgram: item.isProgram,
-            COE_ROADMAP_TYPE: item.COE_ROADMAP_TYPE
-        })) : 'No program data'
-    });
-
-    console.log('🎯 DRILL-THROUGH DEBUG - Portfolio Analysis:', {
-        totalPortfolioItems: dataWithParentNames.length,
-        portfolioTypeItems: dataWithParentNames.filter(item => item.COE_ROADMAP_TYPE === 'Portfolio').length,
-        portfolioWithChildId: dataWithParentNames.filter(item => item.COE_ROADMAP_TYPE === 'Portfolio' && item.CHILD_ID).length,
-        samplePortfolioItems: dataWithParentNames.filter(item => item.COE_ROADMAP_TYPE === 'Portfolio').slice(0, 3).map(item => ({
-            name: item.name,
-            CHILD_ID: item.CHILD_ID,
-            COE_ROADMAP_TYPE: item.COE_ROADMAP_TYPE,
-            isDrillable: item.COE_ROADMAP_TYPE === 'Portfolio' && item.CHILD_ID && programParentIds.has(item.CHILD_ID)
-        }))
-    });
-
-    console.log('🎯 DRILL-THROUGH DEBUG - Final Results:', {
-        totalItems: dataWithParentNames.length,
-        drillableCount: dataWithDrillableLogic.filter(item => item.isDrillable).length,
-        drillablePortfolios: dataWithDrillableLogic.filter(item => item.isDrillable).map(item => ({
-            id: item.CHILD_ID,
-            name: item.name,
-            type: item.COE_ROADMAP_TYPE,
-            isDrillable: item.isDrillable
-        }))
-    });
 
     // Calculate filtered data based on selection
     const filteredData = selectedParent === 'All'
@@ -374,15 +291,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
 
     // Extract unique parent names for dropdown
     const parentNames = ['All', ...Array.from(new Set(dataWithDrillableLogic.map(item => item.parentName).filter(name => name && name !== 'Root')))];
-    
-    // Debug logging for dropdown  
-    if (portfolioIdToNameMap.size > 0) {
-        console.log('✅ Portfolio dropdown mapping:', {
-            totalItems: allData?.length || 0,
-            portfolioNames: parentNames,
-            mappingSize: portfolioIdToNameMap.size
-        });
-    }
 
     const handleParentChange = (e) => {
         const value = e.target.value;
@@ -712,7 +620,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                             const scaledData = getScaledFilteredData();
                             const ultraMinimalSpacing = 1; // Ultra-minimal spacing
                             const topMargin = 8; // Absolute minimum top margin - just enough to prevent clipping
-                            console.log('🎨 Rendering project:', index, project.name, project);
 
                             // Use fixed compact spacing like Program page
                             const yOffset = scaledData
@@ -794,12 +701,6 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                                 const scaledData = getScaledFilteredData();
                                 const ultraMinimalSpacing = 1; // Ultra-minimal spacing
                                 const topMargin = 8; // Absolute minimum top margin
-                                console.log('📊 Rendering Gantt bar for:', index, project.name, {
-                                    startDate: project.startDate,
-                                    endDate: project.endDate,
-                                    milestones: project.milestones?.length || 0,
-                                    spacing: ultraMinimalSpacing
-                                });
 
                                 // Use fixed compact spacing that matches the left panel
                                 const yOffset = scaledData
@@ -809,28 +710,16 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                                 const projectStartDate = parseDate(project.startDate);
                                 const projectEndDate = parseDate(project.endDate);
 
-                                console.log('📅 Parsed project dates:', {
-                                    projectStartDate: projectStartDate?.toISOString(),
-                                    projectEndDate: projectEndDate?.toISOString()
-                                });
+
 
                                 // Skip rendering if dates are invalid
                                 if (!projectStartDate || !projectEndDate) {
-                                    console.warn('⚠️ Skipping project due to invalid dates:', project.name);
                                     return null;
                                 }
                                 
                                 const startX = calculatePosition(projectStartDate, startDate, dynamicMonthWidth);
                                 const endX = calculatePosition(projectEndDate, startDate, dynamicMonthWidth);
                                 const width = endX - startX;
-                                
-                                console.log('📏 Position calculations for', project.name, ':', {
-                                    startX, endX, width, yOffset,
-                                    monthWidth: dynamicMonthWidth,
-                                    projectStartDate: projectStartDate?.toISOString(),
-                                    projectEndDate: projectEndDate?.toISOString(),
-                                    timelineStartDate: startDate?.toISOString()
-                                });
 
                                 // Get detailed milestone label height breakdown
                                 const milestoneHeights = calculateMilestoneLabelHeight(project.milestones, dynamicMonthWidth, index);

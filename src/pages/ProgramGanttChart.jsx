@@ -56,16 +56,13 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
         // Only include milestones that fall within the timeline range
         if (timelineStartDate && timelineEndDate) {
             const isWithinTimeline = milestoneDate >= timelineStartDate && milestoneDate <= timelineEndDate;
-            if (!isWithinTimeline) {
-                console.log('🚫 Program: Excluding milestone outside timeline:', milestone.label, milestoneDate.toISOString());
-            }
+            
             return isWithinTimeline;
         }
 
         return true; // If no timeline bounds provided, include all milestones
     });
 
-    console.log(`🎯 Program: Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
 
     // Display3: Group milestones by month using filtered milestones
     const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones);
@@ -149,9 +146,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
 
     // Get timeline range based on selected view
     const { startDate, endDate } = getTimelineRangeForView(timelineView);
-    console.log('📅 Program Timeline view:', timelineView);
-    console.log('📅 Program Timeline range:', startDate?.toISOString(), 'to', endDate?.toISOString());
-    
+  
     // Calculate total months dynamically based on selected timeline
     const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
     
@@ -162,13 +157,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
     // Calculate total width for the timeline (used by SVG)
     const totalWidth = totalMonths * dynamicMonthWidth;
     
-    console.log('📐 Program Dynamic sizing:', {
-        totalMonths,
-        availableGanttWidth,
-        dynamicMonthWidth,
-        totalWidth,
-        viewportWidth: window.innerWidth
-    });
+
 
     // Handle window resize
     useEffect(() => {
@@ -182,17 +171,11 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
     // Use cached data and filter by portfolio
     useEffect(() => {
         if (programData && programData.data) {
-            console.log('✅ Using cached program data:', programData);
             
             // Filter programs by selected portfolio
             let filteredData = programData.data;
             if (selectedPortfolioId) {
-                console.log('🔍 PROGRAM FILTERING DEBUG:', {
-                    selectedPortfolioId,
-                    totalPrograms: programData.data.length,
-                    sampleProgram: programData.data[0],
-                    programFields: programData.data[0] ? Object.keys(programData.data[0]) : 'No programs'
-                });
+
                 
                 filteredData = programData.data.filter(program => {
                     // Programs have COE_ROADMAP_PARENT_ID that should match Portfolio's CHILD_ID
@@ -200,21 +183,11 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                    program.parentId === selectedPortfolioId ||
                                    program.portfolioId === selectedPortfolioId ||
                                    program.portfolio_id === selectedPortfolioId;
-                    
-                    if (matches) {
-                        console.log('✅ Program matches portfolio:', {
-                            programName: program.name,
-                            programId: program.id,
-                            COE_ROADMAP_PARENT_ID: program.COE_ROADMAP_PARENT_ID,
-                            parentId: program.parentId,
-                            selectedPortfolioId
-                        });
-                    }
+                
                     
                     return matches;
                 });
-                
-                console.log(`🎯 Program filtering result: ${filteredData.length} programs found for portfolio ${selectedPortfolioId}`);
+                            
             }
             
             setAllData(filteredData);
@@ -222,7 +195,6 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
             setLoading(false);
             setError(null);
             
-            console.log(`✅ Program data filtered: ${filteredData.length} items from cache`);
         } else if (!cacheLoading && !programData) {
             // Don't show error immediately - data might still be loading
             // Only show error if we're really done loading and have no data
@@ -322,13 +294,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
             });
         });
         
-        console.log('🎯 PROGRAM HIERARCHICAL DATA:', {
-            totalItems: hierarchicalResult.length,
-            programHeaders: hierarchicalResult.filter(item => item.isProgramHeader).length,
-            childItems: hierarchicalResult.filter(item => item.isChildItem).length,
-            programGroups: Object.keys(programGroups).length,
-            selectedProgram: selectedProgram
-        });
+
         
         return hierarchicalResult;
     })();
@@ -366,7 +332,6 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                 );
                 
                 if (childrenBelongToParent) {
-                    console.log('🎯 PROGRAM SMART PAGINATION: Adding parent header', parentHeader.displayName, 'to page', page);
                     // Add the parent header at the beginning of the page
                     paginatedSlice = [parentHeader, ...paginatedSlice];
                     
@@ -386,11 +351,6 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
     
     // Function to get the paginated data (no additional timeline filtering needed)
     const getTimelineFilteredData = () => {
-        console.log('🎯 Program getTimelineFilteredData called:', {
-            paginatedLength: paginatedData.length,
-            timelineView: timelineView,
-            currentPage: currentPage
-        });
         
         return paginatedData; // Already filtered by timeline
     };

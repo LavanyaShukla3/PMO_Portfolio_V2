@@ -30,7 +30,6 @@ async function apiCall(endpoint, params = {}) {
             }
         });
 
-        console.log(`🔍 API Call: ${url.toString()}`);
         
         const response = await fetch(url.toString(), {
             method: 'GET',
@@ -48,18 +47,9 @@ async function apiCall(endpoint, params = {}) {
         if (data.status !== 'success') {
             throw new Error(data.message || 'API request failed');
         }
-
-        console.log(`✅ API Success: ${endpoint}`, {
-            hierarchyCount: data.data?.hierarchy?.length || 0,
-            investmentCount: data.data?.investment?.length || 0,
-            pagination: data.data?.pagination,
-            cached: data.cache_info?.cached
-        });
-
         return data;
         
     } catch (error) {
-        console.error(`❌ API Error: ${endpoint}`, error);
         throw error;
     }
 }
@@ -68,30 +58,25 @@ async function apiCall(endpoint, params = {}) {
  * Process raw API data into the format expected by the frontend components
  */
 function processRawApiData(apiResponse) {
-    console.log('🔄 Processing API response:', apiResponse);
     
     if (!apiResponse?.data?.hierarchy || !apiResponse?.data?.investment) {
-        console.warn('Invalid API response structure:', apiResponse);
         return [];
     }
 
     const hierarchyData = apiResponse.data.hierarchy;
     const investmentData = apiResponse.data.investment;
 
-    console.log('📊 Data counts - Hierarchy:', hierarchyData.length, 'Investment:', investmentData.length);
 
     // NEW APPROACH: Use investment records directly to create displayable portfolio items
     // This gives us records that actually have timeline data for Gantt charts
     
     // Get all Investment records (not Phases or Milestones)
     const investmentRecords = investmentData.filter(inv => inv.ROADMAP_ELEMENT === 'Investment');
-    console.log('📈 Investment records found:', investmentRecords.length);
     
     const processedData = [];
     
     // Process each investment record
     investmentRecords.forEach(investment => {
-        console.log('🔄 Processing investment:', investment.INV_EXT_ID, investment.INVESTMENT_NAME);
         
         // Find milestones for this investment
         const milestones = investmentData
@@ -101,25 +86,20 @@ function processRawApiData(apiResponse) {
                 inv.ROADMAP_ELEMENT.includes('Milestones')
             )
             .map(milestone => {
-                // DEBUG: Log the raw TASK_START format
-                if (milestone.TASK_NAME?.includes('Process Mining DACH') || milestone.TASK_NAME?.includes('Order Processing/PFNA DSD')) {
-                    console.log('🔍 DEBUG Raw milestone data:', {
-                        label: milestone.TASK_NAME,
-                        rawTASK_START: milestone.TASK_START,
-                        typeOfTASK_START: typeof milestone.TASK_START,
-                        isDateObject: milestone.TASK_START instanceof Date
-                    });
-                }
+                
                 
                 return {
                     date: milestone.TASK_START,
+                    MILESTONE_DATE: milestone.TASK_START, // Component expects this field name
+                    MILESTONE_NAME: milestone.TASK_NAME,  // Component expects this field name
+                    TASK_NAME: milestone.TASK_NAME,       // Keep for compatibility
                     status: milestone.MILESTONE_STATUS,
+                    STATUS: milestone.MILESTONE_STATUS,    // Component expects this field name
                     label: milestone.TASK_NAME,
                     isSG3: milestone.ROADMAP_ELEMENT?.includes('SG3') || milestone.TASK_NAME?.includes('SG3')
                 };
             });
 
-        console.log('🎯 Milestones found for', investment.INV_EXT_ID, ':', milestones.length);
 
         // Create portfolio item using investment data (compatible with PortfolioGanttChart.jsx)
         const portfolioData = {
@@ -145,12 +125,6 @@ function processRawApiData(apiResponse) {
         processedData.push(portfolioData);
     });
     
-    console.log('✅ Processed data:', processedData.length, 'investment-based items');
-    console.log('📋 Items with timeline data:', processedData.filter(item => item.startDate && item.endDate).length);
-    
-    if (processedData.length > 0) {
-        console.log('📋 Sample processed item:', processedData[0]);
-    }
     
     return processedData;
 }
@@ -160,7 +134,6 @@ function processRawApiData(apiResponse) {
  * This matches the logic from apiDataService.js to ensure consistency
  */
 function processPortfolioDataFromFullDataset(apiResponse) {
-    console.log('🔄 Processing portfolio data from full dataset:', apiResponse);
     
     if (!apiResponse?.data?.hierarchy || !apiResponse?.data?.investment) {
         console.warn('Invalid API response structure:', apiResponse);
@@ -170,14 +143,12 @@ function processPortfolioDataFromFullDataset(apiResponse) {
     const hierarchyData = apiResponse.data.hierarchy;
     const investmentData = apiResponse.data.investment;
 
-    console.log('📊 Full dataset counts - Hierarchy:', hierarchyData.length, 'Investment:', investmentData.length);
 
     // Use the same approach as apiDataService.js - filter for Portfolio records
     const portfolioRecords = hierarchyData.filter(item => 
         item.COE_ROADMAP_TYPE === 'Portfolio'
     );
 
-    console.log('📋 Portfolio records found:', portfolioRecords.length);
 
     // Group portfolios by their parent PTF ID
     const portfolioGroups = {};
@@ -190,7 +161,6 @@ function processPortfolioDataFromFullDataset(apiResponse) {
     });
     
     const ptfIds = Object.keys(portfolioGroups);
-    console.log('📊 PTF groups found:', ptfIds.length);
     
     // Initialize processed data array
     const processedData = [];
@@ -215,15 +185,7 @@ function processPortfolioDataFromFullDataset(apiResponse) {
                     inv.ROADMAP_ELEMENT.includes('Milestones')
                 )
                 .map(milestone => {
-                    // DEBUG: Log the raw TASK_START format for specific milestones
-                    if (milestone.TASK_NAME?.includes('Process Mining DACH') || milestone.TASK_NAME?.includes('Order Processing/PFNA DSD')) {
-                        console.log('🔍 DEBUG Raw milestone data (Portfolio):', {
-                            label: milestone.TASK_NAME,
-                            rawTASK_START: milestone.TASK_START,
-                            typeOfTASK_START: typeof milestone.TASK_START,
-                            isDateObject: milestone.TASK_START instanceof Date
-                        });
-                    }
+                    
                     
                     return {
                         date: milestone.TASK_START,
@@ -249,7 +211,6 @@ function processPortfolioDataFromFullDataset(apiResponse) {
                 isDrillable: false
             };
             
-            console.log('📋 Processing portfolio:', portfolioData.id, portfolioData.name, 'Has investment:', !!investment);
             
             processedData.push(portfolioData);
         }
@@ -270,20 +231,8 @@ function processPortfolioDataFromFullDataset(apiResponse) {
         }
     });
     
-    console.log('✅ Processed portfolio data:', processedData.length, 'portfolio items');
-    console.log('📋 Items with investment data:', processedData.filter(item => item.hasInvestmentData).length);
-    console.log('📋 Items without investment data:', processedData.filter(item => !item.hasInvestmentData).length);
     
-    // Check for our target records
-    const targetRecords = ['PROG000328', 'PROG000268'];
-    targetRecords.forEach(recordId => {
-        const found = processedData.find(item => item.id === recordId);
-        if (found) {
-            console.log(`✅ TARGET RECORD ${recordId} found:`, found);
-        } else {
-            console.log(`❌ TARGET RECORD ${recordId} NOT found`);
-        }
-    });
+    
     
     return processedData;
 }
@@ -293,24 +242,20 @@ function processPortfolioDataFromFullDataset(apiResponse) {
  * This matches the original apiDataService.js approach but fixes the bugs
  */
 function processProgramDataFromFullDataset(apiResponse, portfolioId) {
-    console.log('🔄 Processing program data for portfolio using apiDataService.js logic:', portfolioId);
     
     if (!apiResponse?.data?.hierarchy || !apiResponse?.data?.investment) {
-        console.warn('Invalid API response structure:', apiResponse);
         return [];
     }
 
     const hierarchyData = apiResponse.data.hierarchy;
     const investmentData = apiResponse.data.investment;
 
-    console.log('📊 Full dataset counts - Hierarchy:', hierarchyData.length, 'Investment:', investmentData.length);
 
     // STEP 1: Filter hierarchy for Program and Sub-Program data (corrected from apiDataService.js)
     const programTypeData = hierarchyData.filter(item => 
         item.COE_ROADMAP_TYPE === 'Program' || item.COE_ROADMAP_TYPE === 'Sub-Program'
     );
     
-    console.log(`📋 Total Program/Sub-Program records: ${programTypeData.length}`);
 
     // STEP 2: Filter for the selected portfolio using the original apiDataService.js logic
     let filteredData = programTypeData;
@@ -325,14 +270,12 @@ function processProgramDataFromFullDataset(apiResponse, portfolioId) {
         );
     }
     
-    console.log(`📋 Filtered programs for ${portfolioId}: ${filteredData.length}`);
 
     // STEP 3: Look for self-referencing parent programs (original logic)
     const parentPrograms = filteredData.filter(item => 
         item.COE_ROADMAP_PARENT_ID === item.CHILD_ID && item.COE_ROADMAP_TYPE === 'Program'
     );
     
-    console.log(`📋 Self-referencing parent programs: ${parentPrograms.length}`);
 
     const processedData = [];
     
@@ -423,7 +366,6 @@ function processProgramDataFromFullDataset(apiResponse, portfolioId) {
         }
     } else {
         // FALLBACK: No self-referencing programs found, use all filtered programs as flat list
-        console.log('📋 No self-referencing programs found, using flat list approach');
         
         for (const program of filteredData) {
             // Find investment data for this program
@@ -466,8 +408,6 @@ function processProgramDataFromFullDataset(apiResponse, portfolioId) {
         }
     }
     
-    console.log('✅ Processed program data:', processedData.length, 'program items');
-    console.log('📋 Items with investment data:', processedData.filter(item => item.hasInvestmentData).length);
     
     return processedData;
 }
@@ -480,13 +420,11 @@ function processProgramDataFromFullDataset(apiResponse, portfolioId) {
 function processPortfolioDataFromOptimizedEndpoint(apiResponse) {
     try {
         if (!apiResponse?.data?.hierarchy) {
-            console.warn('No hierarchy data in optimized portfolio response');
             return [];
         }
 
         const hierarchyData = apiResponse.data.hierarchy || [];
         const investmentData = apiResponse.data.investment || [];
-        console.log(`🔍 Processing optimized endpoint - Hierarchy: ${hierarchyData.length}, Investment: ${investmentData.length}`);
 
         // Create maps for quick lookups
         const investmentMap = new Map();
@@ -513,23 +451,7 @@ function processPortfolioDataFromOptimizedEndpoint(apiResponse) {
             // Combine all milestone types and filter for relevant ones
             const allMilestones = [...deploymentMilestones, ...otherMilestones];
             
-            // DEBUG: Log all milestones for projects with 2026-01-23 dates
-            const has2026Jan23 = allMilestones.some(m => m.TASK_START?.includes('2026-01-23'));
-            if (has2026Jan23) {
-                console.log('🔍 MILESTONE DATA DEBUG - Found 2026-01-23 milestone:', {
-                    projectId: hierarchyRecord.CHILD_ID,
-                    totalMilestones: allMilestones.length,
-                    milestones: allMilestones.map(m => ({
-                        taskName: m.TASK_NAME,
-                        taskStart: m.TASK_START,
-                        status: m.MILESTONE_STATUS,
-                        hasTaskName: !!m.TASK_NAME,
-                        hasTaskStart: !!m.TASK_START,
-                        includesSG3: m.TASK_NAME?.toLowerCase().includes('sg3'),
-                        includesDeploy: m.TASK_NAME?.toLowerCase().includes('deploy')
-                    }))
-                });
-            }
+            
             
             const milestones = allMilestones
                 .filter(milestone => 
@@ -570,18 +492,13 @@ function processPortfolioDataFromOptimizedEndpoint(apiResponse) {
                 COE_ROADMAP_TYPE: hierarchyRecord.COE_ROADMAP_TYPE
             };
 
-            console.log(`✅ Portfolio item: ${portfolioItem.name}, dates: ${portfolioItem.startDate} to ${portfolioItem.endDate}, milestones: ${milestones.length}, hasInvestmentData: ${portfolioItem.hasInvestmentData}`);
             return portfolioItem;
         });
 
-        console.log(`✅ Processed ${processedData.length} portfolio items with investment data from optimized endpoint`);
-        console.log(`📊 Items with dates: ${processedData.filter(item => item.startDate && item.endDate).length}`);
-        console.log(`📊 Items with milestones: ${processedData.filter(item => item.milestones?.length > 0).length}`);
         
         return processedData;
 
     } catch (error) {
-        console.error('❌ Error processing optimized portfolio data:', error);
         return [];
     }
 }
@@ -611,7 +528,6 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
 
     // CRITICAL FIX: Always call the API directly for each page.
     // This removes the flawed caching that limited you to 1000 records.
-    console.log(`🔄 Fetching portfolio data directly from API for page: ${page}, limit: ${limit}`);
     
     try {
         const response = await apiCall('/api/data/portfolio', {
@@ -625,7 +541,6 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
         // Process the structured response from the optimized endpoint
         const processedData = processPortfolioDataFromOptimizedEndpoint(response);
         
-        console.log(`✅ Portfolio data fetched: page ${page}, ${processedData.length} items`);
         
         return {
             data: processedData,
@@ -635,7 +550,6 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
             fromCache: false // Always fresh data
         };
     } catch (error) {
-        console.error('Failed to fetch portfolio data:', error);
         throw error;
     }
 }
@@ -647,7 +561,6 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
 export function clearPortfolioDataCache() {
     portfolioDataCache = null;
     cacheTimestamp = null;
-    console.log('🗑️ Portfolio data cache cleared');
 }
 
 /**
@@ -658,11 +571,9 @@ export function clearProgramDataCache(portfolioId = null) {
     if (portfolioId) {
         programDataCache.delete(portfolioId);
         programCacheTimestamp.delete(portfolioId);
-        console.log(`🗑️ Program data cache cleared for portfolio: ${portfolioId}`);
     } else {
         programDataCache.clear();
         programCacheTimestamp.clear();
-        console.log('🗑️ All program data cache cleared');
     }
 }
 
@@ -681,7 +592,6 @@ export function clearProgramDataCache(portfolioId = null) {
  * to ensure 100% compatibility with ProgramGanttChart.jsx
  */
 export async function fetchProgramData(selectedPortfolioId = null, options = {}) {
-    console.log('🔄 fetchProgramData called with selectedPortfolioId:', selectedPortfolioId);
     
     try {
         // Use the same API endpoint as the original apiDataService.js
@@ -699,7 +609,6 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
         const hierarchyData = result.data.hierarchy;
         const investmentData = result.data.investment;
 
-        console.log('📊 Full dataset - Hierarchy:', hierarchyData.length, 'Investment:', investmentData.length);
 
         // EXACT LOGIC from apiDataService.js processProgramDataFromAPI()
 
@@ -723,7 +632,6 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
             // No portfolio filter applied - showing all programs
         }
 
-        console.log('📋 Filtered program data:', filteredData.length, 'records');
 
         // Build parent-child hierarchy
         const processedData = [];
@@ -733,7 +641,6 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
             item.COE_ROADMAP_PARENT_ID === item.CHILD_ID && item.COE_ROADMAP_TYPE === 'Program'
         );
         
-        console.log('📋 Parent programs found:', parentPrograms.length);
         
         for (const parentProgram of parentPrograms) {
             // Find investment data for this program
@@ -861,8 +768,6 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
             return a.name.localeCompare(b.name);
         });
         
-        console.log('✅ Final processed program data:', sortedData.length, 'items');
-        console.log('📋 Items with timeline data:', sortedData.filter(item => item.startDate && item.endDate).length);
 
         // Return in the format expected by ProgramGanttChart.jsx (exactly like apiDataService.js)
         return {
@@ -875,7 +780,6 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
         };
         
     } catch (error) {
-        console.error('❌ Failed to load program data:', error);
         throw error;
     }
 }
@@ -885,24 +789,20 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
  * This handles the real data format we're receiving from the API
  */
 function processProgramDataUsingApiDataServiceLogic(apiResponse, selectedPortfolioId = null) {
-    console.log('🔄 Processing program data with adapted logic, selectedPortfolioId:', selectedPortfolioId);
     
     if (!apiResponse?.data?.hierarchy || !apiResponse?.data?.investment) {
-        console.warn('Invalid API response structure:', apiResponse);
         return [];
     }
 
     const hierarchyData = apiResponse.data.hierarchy;
     const investmentData = apiResponse.data.investment;
 
-    console.log('📊 API response counts - Hierarchy:', hierarchyData.length, 'Investment:', investmentData.length);
 
     // STEP 1: Filter hierarchy for Program and SubProgram data
     const programTypeData = hierarchyData.filter(item => 
         item.COE_ROADMAP_TYPE === 'Program' || item.COE_ROADMAP_TYPE === 'SubProgram'
     );
 
-    console.log(`📋 Program/SubProgram records: ${programTypeData.length}`);
 
     // STEP 2: Apply portfolio filtering if specified
     let filteredData = programTypeData;
@@ -914,16 +814,12 @@ function processProgramDataUsingApiDataServiceLogic(apiResponse, selectedPortfol
                 parent.COE_ROADMAP_PARENT_ID === selectedPortfolioId
             )
         );
-        console.log(`📋 Filtered programs for ${selectedPortfolioId}: ${filteredData.length}`);
-    } else {
-        console.log('📋 No portfolio filter - showing all programs');
-    }
+    } 
 
     const processedData = [];
     
     // ADAPTED APPROACH: Since we don't have self-referencing programs,
     // treat each program record as a displayable item
-    console.log('📋 Using adapted approach for actual data structure');
     
     for (const program of filteredData) {
         // Look for investment data using different ROADMAP_ELEMENT values
@@ -969,21 +865,13 @@ function processProgramDataUsingApiDataServiceLogic(apiResponse, selectedPortfol
             isDrillable: false, // Will be set later based on SubProgram relationships
             hasInvestmentData: !!finalInvestment
         };
-        
-        console.log('✅ Processed program item:', {
-            id: programData.id,
-            name: programData.name,
-            hasInvestment: !!finalInvestment,
-            startDate: programData.startDate,
-            endDate: programData.endDate
-        });
+
         
         processedData.push(programData);
     }
     
     // If we have no timeline data, let's create some sample items using hierarchy data
     if (processedData.length > 0 && processedData.every(item => !item.startDate)) {
-        console.log('⚠️ No timeline data found in investments, using hierarchy dates');
         
         processedData.forEach(item => {
             // Use current date range as fallback for demonstration
@@ -1004,18 +892,6 @@ function processProgramDataUsingApiDataServiceLogic(apiResponse, selectedPortfol
         return a.name.localeCompare(b.name);
     });
     
-    console.log('✅ Final processed program data:', sortedData.length, 'items');
-    console.log('📋 Items with timeline data:', sortedData.filter(item => item.startDate && item.endDate).length);
-    
-    if (sortedData.length > 0) {
-        console.log('📋 Sample final item:', {
-            id: sortedData[0].id,
-            name: sortedData[0].name,
-            startDate: sortedData[0].startDate,
-            endDate: sortedData[0].endDate,
-            status: sortedData[0].status
-        });
-    }
     
     return sortedData;
 }
@@ -1025,24 +901,20 @@ function processProgramDataUsingApiDataServiceLogic(apiResponse, selectedPortfol
  * This follows the exact same pattern as the original apiDataService.js program processing
  */
 function processProgramDataFromOptimizedAPI(apiResponse, selectedPortfolioId) {
-    console.log('🔄 Processing program data from optimized API for portfolio:', selectedPortfolioId);
     
     if (!apiResponse?.data?.hierarchy || !apiResponse?.data?.investment) {
-        console.warn('Invalid API response structure:', apiResponse);
         return [];
     }
 
     const hierarchyData = apiResponse.data.hierarchy;
     const investmentData = apiResponse.data.investment;
 
-    console.log('📊 API response counts - Hierarchy:', hierarchyData.length, 'Investment:', investmentData.length);
 
     // Filter hierarchy for Program and SubProgram data (same as apiDataService.js)
     const programTypeData = hierarchyData.filter(item => 
         item.COE_ROADMAP_TYPE === 'Program' || item.COE_ROADMAP_TYPE === 'SubProgram'
     );
 
-    console.log(`📋 Program/SubProgram records: ${programTypeData.length}`);
 
     // Filter for the selected portfolio using the EXACT logic from apiDataService.js (lines 151-156)
     let filteredData = programTypeData;
@@ -1056,7 +928,6 @@ function processProgramDataFromOptimizedAPI(apiResponse, selectedPortfolioId) {
         );
     }
 
-    console.log(`📋 Filtered programs for ${selectedPortfolioId}: ${filteredData.length}`);
 
     // Build parent-child hierarchy (EXACT logic from apiDataService.js lines 161-165)
     const processedData = [];
@@ -1066,7 +937,6 @@ function processProgramDataFromOptimizedAPI(apiResponse, selectedPortfolioId) {
         item.COE_ROADMAP_PARENT_ID === item.CHILD_ID && item.COE_ROADMAP_TYPE === 'Program'
     );
 
-    console.log(`📋 Parent programs found: ${parentPrograms.length}`);
     
     for (const parentProgram of parentPrograms) {
         // Find investment data for this program (EXACT logic from apiDataService.js)
@@ -1197,8 +1067,6 @@ function processProgramDataFromOptimizedAPI(apiResponse, selectedPortfolioId) {
         return a.name.localeCompare(b.name);
     });
     
-    console.log('✅ Processed and sorted program data:', sortedData.length, 'items');
-    console.log('📋 Items with investment data:', sortedData.filter(item => item.startDate && item.endDate).length);
     
     return sortedData;
 }
@@ -1208,15 +1076,12 @@ function processProgramDataFromOptimizedAPI(apiResponse, selectedPortfolioId) {
  * Since we don't have actual Program/SubProgram hierarchy data, we'll show investment records as programs
  */
 function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
-    console.log('🔄 Processing program data from API...', apiResponse);
     
     if (!apiResponse?.data?.investment) {
-        console.warn('No investment data in API response for programs:', apiResponse);
         return [];
     }
 
     const investmentData = apiResponse.data.investment;
-    console.log('📊 Program data - Investment records:', investmentData.length);
 
     // For program view, use investment records directly
     // Group investments by their function or market to create a program-like hierarchy
@@ -1226,24 +1091,14 @@ function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
         inv.INVESTMENT_NAME
     );
 
-    console.log('📋 Investment records for program view:', investmentRecords.length);
 
-    // If a specific portfolio is selected, we can filter here if needed
-    let filteredData = investmentRecords;
-    if (selectedPortfolioId && selectedPortfolioId !== 'All') {
-        console.log('🎯 Note: Portfolio filtering for programs not yet implemented');
-        // For MVP, show all investments as program-level items
-        // This could be enhanced later with proper portfolio-program relationships
-    }
 
-    console.log('📋 Filtered program data:', filteredData.length);
 
     // Process each investment record as a program item
     const processedData = [];
     
     for (const investment of filteredData) {
-        console.log('� Processing investment as program:', investment.INV_EXT_ID);
-        
+                
         // Find milestones for this investment
         const milestones = investmentData
             .filter(inv => 
@@ -1273,7 +1128,6 @@ function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
             hasInvestmentData: !!investment
         };
         
-        console.log('✅ Processed parent program:', parentData);
         processedData.push(parentData);
         
         // Find and process children (projects under this program)
@@ -1282,7 +1136,6 @@ function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
             item.CHILD_ID !== parentProgram.CHILD_ID
         );
         
-        console.log('👶 Children found for', parentProgram.CHILD_ID, ':', children.length);
         
         for (const child of children) {
             // Find investment data for this child project (EXACT SAME LOGIC as apiDataService.js)
@@ -1318,7 +1171,6 @@ function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
                 hasInvestmentData: !!childInvestment
             };
             
-            console.log('✅ Processed child project:', childData);
             processedData.push(childData);
         }
     }
@@ -1370,7 +1222,6 @@ function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
         return a.name.localeCompare(b.name);
     });
     
-    console.log('🏁 Final processed program data:', sortedData.length, 'items');
     return sortedData;
 }
 
@@ -1380,7 +1231,6 @@ function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
  * to ensure 100% compatibility with SubProgramGanttChartFull.jsx
  */
 export async function fetchSubProgramData(selectedProgramId = null, options = {}) {
-    console.log('🔄 Calling CORRECTED fetchSubProgramData with programId:', selectedProgramId);
     
     try {
         // Use the fast progressive API endpoint with SQL-level filtering
@@ -1402,8 +1252,6 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
         const hierarchyData = result.data.hierarchy;
         const investmentData = result.data.investment;
 
-        console.log('📊 SubProgram data (corrected API) - Hierarchy:', hierarchyData.length, 'Investment:', investmentData.length);
-
         // *** CRITICAL FIX: Filter out parent records where COE_ROADMAP_PARENT_ID == CHILD_ID ***
         // These are self-referencing records that create duplicates
         const filteredHierarchyData = hierarchyData.filter(subProgram => {
@@ -1414,7 +1262,6 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
             return !isParentSameAsChild;
         });
 
-        console.log(`📊 After duplicate filtering: ${hierarchyData.length} → ${filteredHierarchyData.length} records`);
 
         // Build simplified data structure for SubProgramGanttChart component
         const projects = [];
@@ -1423,17 +1270,18 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
         // Process each sub-program from the filtered hierarchy - NO MORE HARDCODED FALLBACKS
         filteredHierarchyData.forEach(subProgram => {
             const projectId = subProgram.CHILD_ID;
+          
             
             // Find investment data for this sub-program
             const projectInvestments = investmentData.filter(inv => 
                 inv.INV_EXT_ID === projectId
             );
             
-            console.log(`🔍 Processing ${subProgram.CHILD_NAME} (${projectId}): Found ${projectInvestments.length} investment records`);
+            
+           
             
             // If there's no investment data, create a default entry but log it
             if (projectInvestments.length === 0) {
-                console.warn(`⚠️ No investment data found for sub-program: ${subProgram.CHILD_NAME}. Creating default entry.`);
                 
                 // Create default entry for projects without investment data
                 projects.push({
@@ -1457,30 +1305,11 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
                 inv.ROADMAP_ELEMENT === 'Investment' && inv.TASK_NAME === 'Start/Finish Dates'
             ) || projectInvestments.find(inv => inv.ROADMAP_ELEMENT === 'Investment') || projectInvestments[0];
             
-            // Enhanced debugging for CaTAlyst projects
-            if (subProgram.CHILD_NAME && (subProgram.CHILD_NAME.toLowerCase().includes('catalyst') || subProgram.CHILD_NAME === 'CaTAlyst')) {
-                console.log('🎯 CATALYST API: Found CaTAlyst with investment data!');
-                console.log('🎯 CATALYST API: Project ID:', projectId);
-                console.log('🎯 CATALYST API: Investment count:', projectInvestments.length);
-                console.log('🎯 CATALYST API: All investment data:', projectInvestments);
-                console.log('🎯 CATALYST API: Main investment:', mainInvestment);
-                console.log('🎯 CATALYST API: Main investment ROADMAP_ELEMENT:', mainInvestment?.ROADMAP_ELEMENT);
-                console.log('🎯 CATALYST API: Main investment TASK_NAME:', mainInvestment?.TASK_NAME);
-            }
+            
             
             // Find phase data
             const phaseData = projectInvestments.filter(inv => inv.ROADMAP_ELEMENT === 'Phases' && inv.TASK_NAME);
             
-            console.log('🔍 Phase data filtered for', subProgram.CHILD_NAME, ':', phaseData.length, 'phases found');
-            
-            // Additional debugging for any project that should have phases
-            if (subProgram.CHILD_NAME && (subProgram.CHILD_NAME.toLowerCase().includes('catalyst') || subProgram.CHILD_NAME === 'CaTAlyst')) {
-                console.log('🎯 CATALYST PHASE DEBUG: Raw phase filter result:', phaseData);
-                console.log('🎯 CATALYST PHASE DEBUG: Looking for ROADMAP_ELEMENT === "Phases" with TASK_NAME');
-                projectInvestments.forEach(inv => {
-                    console.log(`🎯 CATALYST PHASE DEBUG: Investment record - ROADMAP_ELEMENT: "${inv.ROADMAP_ELEMENT}", TASK_NAME: "${inv.TASK_NAME}"`);
-                });
-            }
             
             // Find milestone data - ENHANCED DEBUGGING
             const rawMilestoneData = projectInvestments.filter(inv => 
@@ -1526,13 +1355,11 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
             });
         });
         
-        console.log('✅ SubProgram data processed correctly:', projects.length, 'projects,', milestones.length, 'milestones');
         
         // Return in the EXACT SAME format as apiDataService.js
         return { projects, milestones };
         
     } catch (error) {
-        console.error('❌ Failed to load sub-program data:', error);
         throw error;
     }
 }
@@ -1600,14 +1427,12 @@ export async function fetchRegionData(region = null, options = {}) {
         // Fetch data from the new optimized endpoint
         const apiResponse = await apiCall('/api/data/region', params);
         
-        console.log('⏱️ Starting data processing...');
         const processingStart = Date.now();
         
         // Process the raw API response to match the format expected by RegionRoadmap.jsx
         const processedData = processRegionDataToExpectedFormat(apiResponse, { page, limit });
         
         const processingTime = Date.now() - processingStart;
-        console.log(`⏱️ Data processing completed in ${processingTime}ms, got ${processedData.length} projects`);
         
         // Return in the same structure expected by the component
         return {
@@ -1622,7 +1447,6 @@ export async function fetchRegionData(region = null, options = {}) {
         };
         
     } catch (error) {
-        console.error('❌ Failed to fetch region data:', error);
         throw error;
     }
 }
@@ -1636,7 +1460,6 @@ export async function fetchRegionData(region = null, options = {}) {
 function processRegionDataToExpectedFormat(apiResponse, paginationOptions = {}) {
     try {
         if (!apiResponse?.data?.investment) {
-            console.warn('No investment data in API response');
             return [];
         }
 
@@ -1647,7 +1470,6 @@ function processRegionDataToExpectedFormat(apiResponse, paginationOptions = {}) 
             ["Non-Clarity item", "Project", "Programs"].includes(item.CLRTY_INV_TYPE)
         );
 
-        console.log(`🔍 Filtered project data: ${projectData.length} records`);
 
         // 2. Group all records for each project by its unique ID
         const projectGroups = {};
@@ -1658,33 +1480,24 @@ function processRegionDataToExpectedFormat(apiResponse, paginationOptions = {}) 
             projectGroups[item.INV_EXT_ID].push(item);
         });
 
-        console.log(`🔍 Processing ${Object.keys(projectGroups).length} unique projects from ${projectData.length} filtered records`);
         
         const processedProjects = [];
         const allProjectIds = Object.keys(projectGroups);
         
-        console.log(`⚡ PERFORMANCE OPTIMIZATION: Processing ${allProjectIds.length} projects...`);
 
         allProjectIds.forEach((projectId, index) => {
-            // Only log every 1000th project to reduce console spam
-            if (index % 1000 === 0 || index < 3) {
-                console.log(`🔄 Processing project ${index + 1}/${allProjectIds.length}: ${projectId}`);
-            }
+            
             const projectItems = projectGroups[projectId];
-            console.log(`  - ${projectItems.length} records for this project`);
             
             // Show what types of records we have for this project
             const recordTypes = projectItems.map(item => item.ROADMAP_ELEMENT);
-            console.log(`  - Record types: ${recordTypes.join(', ')}`);
 
             // FIXED: Don't filter out records with null/empty INV_MARKET
             // Many valid projects have null market data - we should include them
             const itemsWithMarket = projectItems; // Include ALL project items
             
-            console.log(`  - All project records included: ${itemsWithMarket.length}/${projectItems.length}`);
             if (itemsWithMarket.length > 0) {
                 const sampleMarket = itemsWithMarket[0].INV_MARKET;
-                console.log(`  - Sample market value: "${sampleMarket}" (${typeof sampleMarket})`);
             }
 
             // 3. FIXED: Prioritize Investment record for unphased projects to get correct project-level dates
@@ -1711,42 +1524,14 @@ function processRegionDataToExpectedFormat(apiResponse, paginationOptions = {}) 
             
             // Last resort: use the first available record (but log a warning)
             if (!mainRecord && itemsWithMarket.length > 0) {
-                console.warn(`⚠️ Using fallback record for project ${projectId} - dates may be incorrect`);
                 mainRecord = itemsWithMarket[0];
             }
-            
-            console.log(`  - Looking for project record...`);
+
             if (mainRecord) {
                 const projectName = mainRecord.INVESTMENT_NAME || mainRecord.TASK_NAME || `Project ${projectId}`;
-                console.log(`  ✅ Found project record: ${projectName}`);
-                console.log(`  📅 Record dates: ${mainRecord.TASK_START} to ${mainRecord.TASK_FINISH}`);
                 
-                // Special debugging for the problematic project
-                if (projectName && projectName.includes('1C ERP Rollouts BCCA')) {
-                    console.log(`🎯 DETAILED RECORD DEBUG for ${projectName}:`, {
-                        ROADMAP_ELEMENT: mainRecord.ROADMAP_ELEMENT,
-                        TASK_START: mainRecord.TASK_START,
-                        TASK_FINISH: mainRecord.TASK_FINISH,
-                        INVESTMENT_NAME: mainRecord.INVESTMENT_NAME,
-                        TASK_NAME: mainRecord.TASK_NAME,
-                        fullRecord: mainRecord
-                    });
-                    
-                    // Show all available records for this project
-                    console.log(`🎯 ALL RECORDS for ${projectName}:`, 
-                        itemsWithMarket.map(item => ({
-                            ROADMAP_ELEMENT: item.ROADMAP_ELEMENT,
-                            TASK_START: item.TASK_START,
-                            TASK_FINISH: item.TASK_FINISH,
-                            INVESTMENT_NAME: item.INVESTMENT_NAME,
-                            TASK_NAME: item.TASK_NAME
-                        }))
-                    );
-                }
             } else {
-                console.log(`  ❌ No valid project record found`);
                 const availableElements = [...new Set(itemsWithMarket.map(item => item.ROADMAP_ELEMENT))];
-                console.log(`  - Available elements: ${availableElements.join(', ')}`);
                 return; // Skip if no record is found
             }
 
@@ -1812,21 +1597,7 @@ function processRegionDataToExpectedFormat(apiResponse, paginationOptions = {}) 
 
             // 7. Assemble the final project object in EXACT format expected by RegionRoadmap.jsx
             const projectName = mainRecord.INVESTMENT_NAME || mainRecord.TASK_NAME || `Project ${projectId}`;
-            console.log(`  ✅ Successfully processed project: ${projectName}`);
             
-            // Special debugging for the problematic project
-            if (projectName && projectName.includes('1C ERP Rollouts BCCA')) {
-                console.log(`🎯 FINAL PROJECT DATA for ${projectName}:`, {
-                    id: projectId,
-                    name: projectName,
-                    startDate: projectStart,
-                    endDate: projectEnd,
-                    isUnphased,
-                    phases: phases,
-                    mainRecord_TASK_START: mainRecord.TASK_START,
-                    mainRecord_TASK_FINISH: mainRecord.TASK_FINISH
-                });
-            }
             
             processedProjects.push({
                 id: projectId,
@@ -1847,7 +1618,6 @@ function processRegionDataToExpectedFormat(apiResponse, paginationOptions = {}) 
         // 8. Return the final list, sorted by name (same as original)
         const sortedResults = processedProjects.sort((a, b) => a.name.localeCompare(b.name));
         
-        console.log(`\n✅ Final results: Processed ${sortedResults.length} region projects for display`);
         
         // 9. Apply CLIENT-SIDE PAGINATION for performance
         const { page = 1, limit = 25 } = paginationOptions;
@@ -1855,9 +1625,7 @@ function processRegionDataToExpectedFormat(apiResponse, paginationOptions = {}) 
         const endIndex = startIndex + limit;
         const paginatedResults = sortedResults.slice(startIndex, endIndex);
         
-        console.log(`📄 Pagination applied: Page ${page}, showing ${paginatedResults.length} of ${sortedResults.length} total projects`);
-        console.log(`📄 Range: ${startIndex + 1}-${Math.min(endIndex, sortedResults.length)} of ${sortedResults.length}`);
-        
+  
         return {
             data: paginatedResults,
             totalCount: sortedResults.length,
@@ -1867,7 +1635,6 @@ function processRegionDataToExpectedFormat(apiResponse, paginationOptions = {}) 
         };
 
     } catch (error) {
-        console.error('❌ Error processing region data to expected format:', error);
         return {
             data: [],
             totalCount: 0,
@@ -1909,7 +1676,6 @@ export async function getRegionFilterOptions() {
         }
         
     } catch (error) {
-        console.error('Error fetching region filter options:', error);
         // Return empty filters if API call fails (same format as original)
         return {
             regions: [],
@@ -1954,14 +1720,11 @@ export async function clearApiCache(pattern = null) {
         const data = await response.json();
         
         if (data.status === 'success') {
-            console.log('✅ Cache cleared successfully');
             return true;
         } else {
-            console.error('❌ Failed to clear cache:', data.message);
             return false;
         }
     } catch (error) {
-        console.error('❌ Cache clear error:', error);
         return false;
     }
 }
@@ -1977,7 +1740,6 @@ export async function getCacheStats() {
             throw new Error(data.message || 'Failed to get cache stats');
         }
     } catch (error) {
-        console.error('❌ Cache stats error:', error);
         throw error;
     }
 }
@@ -1987,7 +1749,6 @@ export async function getCacheStats() {
  * These should be phased out in favor of the progressive methods above
  */
 export async function fetchPaginatedData(page = 1, pageSize = 25) {
-    console.warn('⚠️ fetchPaginatedData is legacy - consider using specific fetch methods for better performance');
     
     return apiCall('/api/data/paginated', {
         page,

@@ -52,16 +52,13 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
         // Only include milestones that fall within the timeline range
         if (timelineStartDate && timelineEndDate) {
             const isWithinTimeline = milestoneDate >= timelineStartDate && milestoneDate <= timelineEndDate;
-            if (!isWithinTimeline) {
-                console.log('🚫 Region: Excluding milestone outside timeline:', milestone.label, milestoneDate.toISOString());
-            }
+            
             return isWithinTimeline;
         }
 
         return true; // If no timeline bounds provided, include all milestones
     });
 
-    console.log(`🎯 Region: Timeline filtered milestones: ${timelineFilteredMilestones.length} out of ${milestones.length} milestones are within viewport`);
 
     // Display3: Group milestones by month using filtered data
     const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones);
@@ -164,8 +161,6 @@ const RegionRoadMap = () => {
 
     // Get timeline range based on selected view
     const { startDate, endDate } = getTimelineRangeForView(timelineView);
-    console.log('📅 Region Timeline view:', timelineView);
-    console.log('📅 Region Timeline range:', startDate?.toISOString(), 'to', endDate?.toISOString());
     
     // Calculate total months dynamically based on selected timeline
     const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
@@ -177,59 +172,31 @@ const RegionRoadMap = () => {
     // Set monthWidth for template usage (matching PortfolioGanttChart pattern)
     const monthWidth = dynamicMonthWidth;
     
-    console.log('📐 Region Dynamic sizing:', {
-        totalMonths,
-        availableGanttWidth,
-        dynamicMonthWidth,
-        viewportWidth: window.innerWidth
-    });
+    
 
     // PAGINATION FIX: Apply timeline filtering first, then pagination
     // Step 1: Apply timeline filtering to all data
     const timelineFilteredAllData = useMemo(() => {
-        console.log('📊 Computing timelineFilteredAllData:', {
-            allDataLength: allData?.length || 0,
-            hasData: !!allData && allData.length > 0
-        });
+        
         
         if (!allData || allData.length === 0) return [];
         
+        // CRITICAL FIX: Use isProjectInTimelineViewport() to properly check milestones
+        // This ensures projects with only milestones (no start/end dates) are included if their milestones are in viewport
         const filtered = allData.filter(project => {
-            // Simple timeline filtering - can be made more sophisticated later
-            if (!project.startDate && !project.endDate) return true; // Include projects without dates
-            
-            const projectStart = parseDate(project.startDate);
-            const projectEnd = parseDate(project.endDate);
-            
-            // Include project if it overlaps with timeline range
-            if (!projectStart || !projectEnd) return true;
-            return projectEnd >= startDate && projectStart <= endDate;
+            return isProjectInTimelineViewport(project, startDate, endDate);
         });
         
-        console.log('✅ Timeline filtered result:', {
-            inputLength: allData.length,
-            outputLength: filtered.length,
-            totalPages: Math.ceil(filtered.length / ITEMS_PER_PAGE)
-        });
+        
         
         return filtered;
     }, [allData, startDate, endDate]);
     
     // Step 2: Apply pagination to timeline-filtered data
     const processedData = useMemo(() => {
-        console.log('🔍 PAGINATION DEBUG - Processing data:', {
-            timelineFilteredLength: timelineFilteredAllData?.length || 0,
-            currentPage,
-            ITEMS_PER_PAGE,
-            startIndex: (currentPage - 1) * ITEMS_PER_PAGE,
-            endIndex: currentPage * ITEMS_PER_PAGE
-        });
+        
         const result = getPaginatedData(timelineFilteredAllData, currentPage, ITEMS_PER_PAGE);
-        console.log('📊 PAGINATION RESULT:', {
-            resultLength: result?.length || 0,
-            expectedLength: Math.min(ITEMS_PER_PAGE, timelineFilteredAllData?.length || 0),
-            actualData: result?.slice(0, 2)?.map(item => ({ name: item.name, id: item.id }))
-        });
+        
         return result;
     }, [timelineFilteredAllData, currentPage]);
 
@@ -237,15 +204,7 @@ const RegionRoadMap = () => {
     const ganttScrollRef = useRef(null);
     const leftPanelScrollRef = useRef(null);
 
-    // Debug: Track renders and state changes
-    console.log('🔄 REGIONROADMAP RENDER - Current state:', {
-        loading,
-        error: error ? error.substring(0, 50) + '...' : null,
-        processedDataLength: processedData?.length || 0,
-        allDataLength: allData?.length || 0,
-        currentPage,
-        totalItems
-    });
+    
 
     // Calculate total width for the timeline (matching responsive pattern)
     const totalWidth = totalMonths * monthWidth;
@@ -260,123 +219,14 @@ const RegionRoadMap = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // OLD API LOADING DISABLED - Using cached data only
-    // useEffect(() => {
-        // let isCancelled = false; // Prevent race conditions
-        
-        // const loadData = async () => {
-            // console.log(`🚀 STARTING DATA LOAD - Page: ${currentPage}, Filters:`, {
-            //     region: filters.region,
-            //     market: filters.market,
-            //     function: filters.function,
-            //     tier: filters.tier
-            // });
-            
-            // Prevent race conditions - if this effect is cancelled, don't proceed
-            // if (isCancelled) {
-            //     console.log('🚫 Load cancelled due to cleanup');
-            //     return;
-            // }
-            
-            // setLoading(true);
-            // setError(null);
-            
-            // try {
-                // const regionFilter = filters.region === 'All' ? null : filters.region;
-                // const marketFilter = filters.market === 'All' ? null : filters.market;
-                // const functionFilter = filters.function === 'All' ? null : filters.function;
-                // const tierFilter = filters.tier === 'All' ? null : filters.tier;
-                
-                // console.log('🔍 About to call fetchRegionData with params:', {
-                //     regionFilter,
-                //     market: marketFilter,
-                //     function: functionFilter,
-                //     tier: tierFilter
-                // });
-                
-                // // OLD API CALL REMOVED - Using cached data instead
-                // console.log('⚠️ Old API loading disabled - using cached data');
-                
-                // Check again if cancelled after async operation
-                // if (isCancelled) {
-                //     console.log('🚫 Load cancelled after API call');
-                //     return;
-                // }
-                
-                // const newData = response?.data?.data || [];
-                // console.log(`✅ DATA LOADED - Got ${newData.length} items for page ${currentPage}`, newData);
-                
-                // // Set all data for client-side pagination
-                console.log('� Setting all region data - DISABLED - COMMENTED OUT');
-                // setAllData(newData);
-                
-                // setTotalItems(newData.length);
-                
-                // PAGINATION FIX: Commented out - this was resetting page to 1 every render!
-                // Reset to page 1 when filters change
-                // if (currentPage !== 1) {
-                //     setCurrentPage(1);
-                // }
-                
-                // console.log('State updates complete');
-                
-                // CRITICAL DEBUG: Let's also try setting some test data to see if the issue is with state setting
-                // if (newData.length === 0) {
-                    // console.log('⚠️ NO DATA RECEIVED - Setting test data to check if state setting works');
-                    // const testData = [
-                    //     {
-                    //         id: 'TEST001',
-                    //         name: 'Test Project 1',
-                    //         startDate: '2024-01-01',
-                    //         endDate: '2024-12-31',
-                    //         phases: [],
-                    //         milestones: []
-                    //     }
-                    // ];
-                    // // Note: Don't use setProcessedData, let the pagination compute it from allData
-                    // console.log('Test data would be set, but letting pagination handle it from allData');
-                // }
-                
-                // // Debug: Force a small timeout to let state update, then check
-                // setTimeout(() => {
-                //     console.log('🔍 POST-UPDATE CHECK: processedData length should now be:', newData.length || 1);
-                // }, 100);
-
-            // } catch (err) {
-                // // if (!isCancelled) {
-                // //     console.error('❌ FAILED TO LOAD DATA:', err);
-                // //     console.error('❌ Error stack:', err.stack);
-                // //     setError(`Failed to load data: ${err.message}`);
-                // // }
-            // } finally {
-                // // if (!isCancelled) {
-                // //     console.log(`🏁 DATA LOAD COMPLETE - Setting loading to false`);
-                // //     setLoading(false);
-                // // }
-            // }
-        // };
-
-        // loadData();
-
-        // // Cleanup function to prevent race conditions
-        // return () => {
-        //     console.log('🧹 Cleaning up data loading effect');
-        //     isCancelled = true;
-        // };
-
-    // }, [filters.region, filters.market, filters.function, filters.tier, currentPage]); // Use individual filter properties - DISABLED
-
-    // Use cached data instead of API calls
     useEffect(() => {
         if (regionData && regionData.data && regionData.data.data) {
-            console.log('✅ Using cached region data:', regionData);
             
             // Apply client-side filtering - access the actual array at regionData.data.data
             let filteredData = regionData.data.data;
             
             // Ensure filteredData is an array before filtering
             if (!Array.isArray(filteredData)) {
-                console.error('❌ Region data is not an array:', filteredData);
                 setError('Invalid region data format');
                 setLoading(false);
                 return;
@@ -403,7 +253,6 @@ const RegionRoadMap = () => {
                 );
             }
             
-            console.log(`✅ Region data filtered: ${filteredData.length} items from cache`);
             setAllData(filteredData);
             setTotalItems(filteredData.length); // This will be overridden by timeline filtering, but kept for compatibility
             // PAGINATION FIX: Don't reset currentPage here - let it be handled by filter change events only
@@ -419,7 +268,6 @@ const RegionRoadMap = () => {
     // Load cached filter options
     useEffect(() => {
         if (regionFilters) {
-            console.log('✅ Using cached region filters:', regionFilters);
             setFilterOptions(regionFilters);
             setAvailableMarkets(regionFilters.markets || []);
         }
@@ -442,17 +290,8 @@ const RegionRoadMap = () => {
 
     // Handle page changes for client-side pagination - SIMPLIFIED
     const handlePageChangeCallback = useCallback((newPage) => {
-        console.log('🔄 PAGINATION: handlePageChangeCallback called with newPage:', newPage);
-        console.log('📊 PAGINATION: Current state before change:', {
-            currentPage,
-            newPage,
-            allDataLength: allData?.length || 0,
-            timelineFilteredAllDataLength: timelineFilteredAllData?.length || 0
-        });
-        
         // Direct state update without validation to test if it works
         setCurrentPage(newPage);
-        console.log('✅ PAGINATION: setCurrentPage called with:', newPage);
     }, []); // Empty dependencies to ensure stable reference
 
 
@@ -462,26 +301,7 @@ const RegionRoadMap = () => {
     }, [startDate, endDate]);
 
     // PAGINATION FIX: processedData is already timeline-filtered and paginated
-    const timelineFilteredData = useMemo(() => {
-        console.log(`🔍 TIMELINE FILTERING DEBUG (${timelineView}):`);
-        console.log(`📊 Total processedData records: ${processedData.length}`);
-        console.log(`📊 Current page: ${currentPage}`);
-        console.log(`📅 Timeline Range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
-        
-        // Log first few projects for debugging
-        if (processedData.length > 0) {
-            console.log(`📋 Sample projects from page ${currentPage}:`, processedData.slice(0, 3).map(p => ({
-                name: p.name,
-                startDate: p.startDate,
-                endDate: p.endDate,
-                hasPhases: !!p.phases,
-                phaseCount: p.phases?.length || 0
-            })));
-        }
-        
-        // processedData is already filtered and paginated, just return it
-        console.log(`✅ Timeline Filtering Result: ${processedData.length} projects from page ${currentPage}`);
-        
+    const timelineFilteredData = useMemo(() => {        
         return processedData;
     }, [processedData, timelineView, currentPage]);
 
@@ -622,7 +442,6 @@ const RegionRoadMap = () => {
                 below: hasAnyLabels ? maxBelowHeight : 0
             };
         } catch (error) {
-            console.warn('Error calculating milestone label height:', error);
             return { total: 60, above: 30, below: 30 };
         }
     };
@@ -778,7 +597,6 @@ const RegionRoadMap = () => {
                                     totalItems={timelineFilteredAllData?.length || 0}
                                     itemsPerPage={ITEMS_PER_PAGE}
                                     onPageChange={(page) => {
-                                        console.log('🚀 Direct onPageChange called with page:', page);
                                         handlePageChangeCallback(page);
                                     }}
                                     compact={true}
@@ -978,16 +796,7 @@ const RegionRoadMap = () => {
                                             const projectStartDate = parseDate(project.startDate, `${project.name} - Project Start`);
                                             const projectEndDate = parseDate(project.endDate, `${project.name} - Project End`);
                                             
-                                            // Debug specific project that has the issue
-                                            if (project.name && project.name.includes('1C ERP Rollouts BCCA')) {
-                                                console.log(`🎯 DETAILED DEBUG for ${project.name}:`, {
-                                                    startDate: project.startDate,
-                                                    endDate: project.endDate,
-                                                    parsedStartDate: projectStartDate?.toISOString().split('T')[0],
-                                                    parsedEndDate: projectEndDate?.toISOString().split('T')[0],
-                                                    isUnphased: project.isUnphased
-                                                });
-                                            }
+                                            
                                             const projectRowHeight = calculateRowHeight(project.name, project.milestones, projectStartDate, projectEndDate, startDate, endDate);
                                             const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing
                                             const topMargin = Math.round(8 * 1.0); // Absolute minimum top margin - just enough to prevent clipping
@@ -1100,15 +909,7 @@ const RegionRoadMap = () => {
                                                 // Always center milestones on the Gantt bar, regardless of hasValidBar
                                                 const milestoneY = ganttBarY + 6; // Always center milestone on the 12px bar
                                                 
-                                                // DEBUG LOGGING for positioning
-                                                console.log(`🎯 POSITIONING DEBUG for "${project.name.substring(0, 20)}..."`);
-                                                console.log(`  📊 yOffset: ${yOffset}`);
-                                                console.log(`  📏 milestoneHeights:`, milestoneHeights);
-                                                console.log(`  🎯 hasValidBar: ${hasValidBar}`);
-                                                console.log(`  📐 ganttBarY: ${ganttBarY}`);
-                                                console.log(`  🔴 milestoneY: ${milestoneY}`);
-                                                console.log(`  🔵 projectRowHeight: ${projectRowHeight}`);
-                                                console.log(`  ---`);
+
 
                                                 return (
                                                     <g key={`project-${project.id}`} className="project-group">
@@ -1124,13 +925,7 @@ const RegionRoadMap = () => {
                                                             // Check if project has phases - using Region data structure
                                                             const hasValidPhases = project.phases && project.phases.length > 0;
                                                             
-                                                            // DEBUG: Log phase data structure
-                                                            console.log(`🎨 PHASE DEBUG for "${project.name}":`, {
-                                                                hasPhases: !!project.phases,
-                                                                phasesLength: project.phases?.length || 0,
-                                                                phases: project.phases,
-                                                                isUnphased: project.isUnphased
-                                                            });
+                                                            
                                                             
                                                             const validPhases = hasValidPhases ? project.phases.filter(phase => 
                                                                 phase && 
@@ -1146,19 +941,9 @@ const RegionRoadMap = () => {
                                                                 phase.name === 'Unphased' || phase.name === 'Project'
                                                             );
 
-                                                            // DEBUG: More detailed phase validation logging
-                                                            if (validPhases.length > 0) {
-                                                                console.log(`🎨 PHASE VALIDATION for "${project.name}":`, {
-                                                                    validPhasesCount: validPhases.length,
-                                                                    hasRealPhases: hasRealPhases,
-                                                                    phaseNames: validPhases.map(p => p.name),
-                                                                    phaseDetails: validPhases.map(p => ({ name: p.name, start: p.startDate, end: p.endDate })),
-                                                                    isUnphased: project.isUnphased
-                                                                });
-                                                            }
+                                                            
                                                             
                                                             if (hasRealPhases) {
-                                                                console.log(`✅ RENDERING PHASES for ${project.name}`);
                                                                 // Render individual phase bars - copied from SubProgram logic
                                                                 return validPhases.map((phase, phaseIndex) => {
                                                                     const phaseStartDate = parseDate(phase.startDate);
@@ -1174,7 +959,6 @@ const RegionRoadMap = () => {
                                                                     // Get the phase color
                                                                     const phaseColor = PHASE_COLORS[phase.name] || PHASE_COLORS['Unphased'];
                                                                     
-                                                                    console.log(`🎨 Phase rendering: ${phase.name}, color: ${phaseColor}, x: ${x}, width: ${width}`);
                                                                     
                                                                     return (
                                                                         <GanttBar
@@ -1197,28 +981,14 @@ const RegionRoadMap = () => {
                                                                     );
                                                                 });
                                                             } else {
-                                                                console.log(`📊 RENDERING SINGLE BAR for ${project.name} (no valid phases)`);
-                                                                // Debug dates for problematic projects
-                                                                if (project.name && project.name.includes('1C ERP Rollouts BCCA')) {
-                                                                    console.log(`🔍 DATE DEBUG for ${project.name}:`, {
-                                                                        rawStart: project.startDate,
-                                                                        rawEnd: project.endDate,
-                                                                        parsedStart: projectStartDate?.toISOString().split('T')[0],
-                                                                        parsedEnd: projectEndDate?.toISOString().split('T')[0]
-                                                                    });
-                                                                }
+                                                                
                                                                 
                                                                 // Render single project bar for unphased projects
                                                                 const startX = calculatePosition(projectStartDate, startDate, monthWidth);
                                                                 const endX = calculatePosition(projectEndDate, startDate, monthWidth);
                                                                 const width = endX - startX;
                                                                 
-                                                                // Debug positions for problematic projects
-                                                                if (project.name && project.name.includes('1C ERP Rollouts BCCA')) {
-                                                                    console.log(`📏 POSITION DEBUG for ${project.name}:`, {
-                                                                        startX, endX, width
-                                                                    });
-                                                                }
+                                                                
 
                                                                 // For unphased records, always use grey color regardless of INV_OVERALL_STATUS
                                                                 const unphased_grey_color = '#c0c0c0'; // Light grey for all unphased records
@@ -1287,7 +1057,6 @@ const RegionRoadMap = () => {
                                 totalItems={timelineFilteredAllData?.length || 0}
                                 itemsPerPage={ITEMS_PER_PAGE}
                                 onPageChange={(page) => {
-                                    console.log('🚀 Bottom pagination onPageChange called with page:', page);
                                     handlePageChangeCallback(page);
                                 }}
                             />
