@@ -142,6 +142,29 @@
   background: #94a3b8;
 }
 
+/* Hide scrollbars on left panels while maintaining scroll functionality */
+.gantt-left-panel {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+.gantt-left-panel::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, and Opera */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Additional specific targeting for left panels */
+div.gantt-left-panel {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+div.gantt-left-panel::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+}
+
 /* High DPI Display Support */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .gantt-milestone-marker {

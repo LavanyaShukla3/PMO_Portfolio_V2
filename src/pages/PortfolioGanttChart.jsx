@@ -521,7 +521,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     {/* Left Section: Portfolio Selector & Timeline */}
                     <div className="flex items-center gap-3 flex-wrap">
                         <div className="flex items-center gap-2">
-                            <label className="font-medium text-sm text-gray-700 whitespace-nowrap">Portfolio:</label>
+                            <label className="font-medium text-sm text-gray-700 whitespace-nowrap">Investment:</label>
                             <select
                                 value={selectedParent}
                                 onChange={handleParentChange}

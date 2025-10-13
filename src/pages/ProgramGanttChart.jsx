@@ -7,6 +7,7 @@ import { getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calcul
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 import { differenceInDays, differenceInMonths } from 'date-fns';
+import '../styles/responsive-gantt.css';
 
 // Fixed constants (zoom removed)
 const getResponsiveConstants = () => {
@@ -584,7 +585,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                             </button>
                         )}
                         <div className="flex items-center gap-2">
-                            <label className="font-medium text-sm text-gray-700 whitespace-nowrap">Program:</label>
+                            <label className="font-medium text-sm text-gray-700 whitespace-nowrap">Investment:</label>
                             <select
                                 value={selectedProgram}
                                 onChange={handleProgramChange}
@@ -676,12 +677,14 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                 {/* Left Panel - Program Names */}
                 <div
                     ref={leftPanelScrollRef}
-                    className="flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto"
+                    className="flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto gantt-left-panel"
                     style={{
                         width: responsiveConstants.LABEL_WIDTH,
                         position: 'sticky',
                         left: 0,
                         zIndex: 10,
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none'
                     }}
                     onScroll={handleLeftPanelScroll}
                 >

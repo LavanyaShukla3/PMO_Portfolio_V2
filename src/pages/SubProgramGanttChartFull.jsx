@@ -8,6 +8,7 @@ import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
 import { differenceInDays } from 'date-fns';
+import '../styles/responsive-gantt.css';
 
 // Fixed constants (zoom removed)
 const getResponsiveConstants = () => {
@@ -903,7 +904,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     <div className="flex items-center justify-between">
                         {/* Left: Controls */}
                         <div className="flex items-center space-x-3">
-                            <label className="font-medium text-sm">Program:</label>
+                            <label className="font-medium text-sm">Investment:</label>
                             <select
                                 value={selectedProgram}
                                 onChange={handleProgramChange}
@@ -988,8 +989,17 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 {/* Left Panel - Project Names */}
                 <div 
                     ref={leftPanelRef}
-                    className="bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto"
-                    style={{ minWidth: `${constants.LABEL_WIDTH}px`, width: 'auto', position: 'sticky', left: 0, zIndex: 10, height: '100%' }}
+                    className="bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto gantt-left-panel"
+                    style={{ 
+                        minWidth: `${constants.LABEL_WIDTH}px`, 
+                        width: 'auto', 
+                        position: 'sticky', 
+                        left: 0, 
+                        zIndex: 10, 
+                        height: '100%',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none'
+                    }}
                     onScroll={handleLeftPanelScroll}
                 >
                     {/* Header */}
