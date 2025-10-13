@@ -72,10 +72,8 @@ export const parseDate = (dateString, context = '') => {
             return directParse;
         }
         
-        console.warn('Unrecognized date format:', dateString, context ? `[${context}]` : '');
         return null;
     } catch (error) {
-        console.error('❌ Error parsing date:', dateString, error, context ? `[${context}]` : '');
         return null;
     }
 };
@@ -456,6 +454,7 @@ export const createHorizontalMilestoneLabel = (monthMilestones, maxWidth, fontSi
 export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSize = '14px', allProjectMilestones = null, currentMonthWidth = 100) => {
     if (!monthMilestones?.length) return { labels: [], textAnchor: 'middle', spanMonths: 0 };
 
+
     // Task 2: Remove date from milestone marker where there is just one milestone in the month
     const isSingleMilestone = monthMilestones.length === 1;
 
@@ -528,7 +527,6 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 // Redundant with sameRowMilestones.length === 0, but keep safe default
                 spanMonths = 12; // Generous but not excessive
                 textAnchor = 'middle';
-                console.log(`📍 [${firstMilestoneLabel}] SOLO - ${spanMonths.toFixed(1)} months`);
             } else if (!leftNeighbor) {
                 // NO LEFT NEIGHBOR: Can extend left freely, limited by right neighbor
                 // Use RIGHT-ALIGN (text-anchor="end") - Label extends LEFTWARD from marker
@@ -537,7 +535,6 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 // Allow extension up to the right neighbor with safety margin
                 spanMonths = rightSpan * (1 - SAFETY_MARGIN);
                 textAnchor = 'end'; // Right-align: label extends LEFT
-                console.log(`📍 [${firstMilestoneLabel}] NO LEFT - extend to RIGHT neighbor (${rightSpan.toFixed(1)}mo) = ${spanMonths.toFixed(1)} months`);
                 
             } else if (!rightNeighbor) {
                 // NO RIGHT NEIGHBOR: Can extend right freely, limited by left neighbor  
@@ -548,7 +545,6 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 // Use left span as indicator of density, but allow more right extension
                 spanMonths = Math.max(leftSpan * (1 - SAFETY_MARGIN), 8); // Minimum 8 months to the right
                 textAnchor = 'start'; // Left-align: label extends RIGHT
-                console.log(`📍 [${firstMilestoneLabel}] NO RIGHT - extend from LEFT neighbor (${leftSpan.toFixed(1)}mo) = ${spanMonths.toFixed(1)} months`);
                 
             } else {
                 // BOTH NEIGHBORS: Calculate available space between them
@@ -562,7 +558,6 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 const availableSpace = totalSpace * (1 - SAFETY_MARGIN);
                 spanMonths = availableSpace;
                 textAnchor = 'middle'; // Center-align: label extends BOTH ways
-                console.log(`📍 [${firstMilestoneLabel}] BOTH - space between (L:${leftSpan.toFixed(1)}, R:${rightSpan.toFixed(1)}, total:${totalSpace.toFixed(1)}) = ${spanMonths.toFixed(1)} months`);
                 
             }
 
@@ -597,6 +592,7 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
         
         // ENHANCED: Use intelligent truncation based on alternating-row-aware max width
         const result = truncateTextToWidth(label, effectiveMaxWidth, fontSize);
+        
         return result;
     });
 

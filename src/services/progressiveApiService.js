@@ -86,16 +86,29 @@ function processRawApiData(apiResponse) {
                 inv.ROADMAP_ELEMENT.includes('Milestones')
             )
             .map(milestone => {
+                // CRITICAL FIX: The full milestone label is in INVESTMENT_NAME, not TASK_NAME
+                // TASK_NAME only contains "SG3", but INVESTMENT_NAME has the full text like:
+                // "Case of the Future/Market: Global" or "McKinsey Partnership/Market: Global"
+                const fullMilestoneLabel = milestone.INVESTMENT_NAME || milestone.TASK_NAME || 'Milestone';
                 
+                // DEBUG: Log milestone data
+                if (milestone.TASK_NAME && milestone.TASK_NAME.includes('SG3')) {
+                    console.log('🔍 API DATA - Milestone from backend:', {
+                        INVESTMENT_NAME: milestone.INVESTMENT_NAME,
+                        TASK_NAME: milestone.TASK_NAME,
+                        fullMilestoneLabel: fullMilestoneLabel,
+                        ROADMAP_ELEMENT: milestone.ROADMAP_ELEMENT
+                    });
+                }
                 
                 return {
                     date: milestone.TASK_START,
                     MILESTONE_DATE: milestone.TASK_START, // Component expects this field name
-                    MILESTONE_NAME: milestone.TASK_NAME,  // Component expects this field name
-                    TASK_NAME: milestone.TASK_NAME,       // Keep for compatibility
+                    MILESTONE_NAME: fullMilestoneLabel,    // Use INVESTMENT_NAME for full label
+                    TASK_NAME: fullMilestoneLabel,         // Use INVESTMENT_NAME for full label
                     status: milestone.MILESTONE_STATUS,
                     STATUS: milestone.MILESTONE_STATUS,    // Component expects this field name
-                    label: milestone.TASK_NAME,
+                    label: fullMilestoneLabel,             // Use INVESTMENT_NAME for full label
                     isSG3: milestone.ROADMAP_ELEMENT?.includes('SG3') || milestone.TASK_NAME?.includes('SG3')
                 };
             });
@@ -294,12 +307,17 @@ function processProgramDataFromFullDataset(apiResponse, portfolioId) {
                     inv.ROADMAP_ELEMENT && 
                     inv.ROADMAP_ELEMENT.includes('Milestones')
                 )
-                .map(milestone => ({
-                    date: milestone.TASK_START,
-                    status: milestone.MILESTONE_STATUS,
-                    label: milestone.TASK_NAME,
-                    isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
-                }));
+                .map(milestone => {
+                    // CRITICAL FIX: Use INVESTMENT_NAME for full label (contains full text)
+                    // TASK_NAME only contains "SG3" for non-Clarity deployments
+                    const fullLabel = milestone.INVESTMENT_NAME || milestone.TASK_NAME;
+                    return {
+                        date: milestone.TASK_START,
+                        status: milestone.MILESTONE_STATUS,
+                        label: fullLabel,
+                        isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
+                    };
+                });
 
             // Process parent program
             const parentData = {
@@ -380,12 +398,17 @@ function processProgramDataFromFullDataset(apiResponse, portfolioId) {
                     inv.ROADMAP_ELEMENT && 
                     inv.ROADMAP_ELEMENT.includes('Milestones')
                 )
-                .map(milestone => ({
-                    date: milestone.TASK_START,
-                    status: milestone.MILESTONE_STATUS,
-                    label: milestone.TASK_NAME,
-                    isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
-                }));
+                .map(milestone => {
+                    // CRITICAL FIX: Use INVESTMENT_NAME for full label (contains full text)
+                    // TASK_NAME only contains "SG3" for non-Clarity deployments
+                    const fullLabel = milestone.INVESTMENT_NAME || milestone.TASK_NAME;
+                    return {
+                        date: milestone.TASK_START,
+                        status: milestone.MILESTONE_STATUS,
+                        label: fullLabel,
+                        isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
+                    };
+                });
 
             // Create program item
             const programData = {
@@ -655,12 +678,17 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
                     inv.ROADMAP_ELEMENT && 
                     inv.ROADMAP_ELEMENT.includes('Milestones')
                 )
-                .map(milestone => ({
-                    date: milestone.TASK_START,
-                    status: milestone.MILESTONE_STATUS,
-                    label: milestone.TASK_NAME,
-                    isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
-                }));
+                .map(milestone => {
+                    // CRITICAL FIX: Use INVESTMENT_NAME for full label (contains full text)
+                    // TASK_NAME only contains "SG3" for non-Clarity deployments
+                    const fullLabel = milestone.INVESTMENT_NAME || milestone.TASK_NAME;
+                    return {
+                        date: milestone.TASK_START,
+                        status: milestone.MILESTONE_STATUS,
+                        label: fullLabel,
+                        isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
+                    };
+                });
 
             // Process parent program (EXACT structure from apiDataService.js)
             const parentData = {
@@ -994,12 +1022,17 @@ function processProgramDataFromOptimizedAPI(apiResponse, selectedPortfolioId) {
                     inv.ROADMAP_ELEMENT && 
                     inv.ROADMAP_ELEMENT.includes('Milestones')
                 )
-                .map(milestone => ({
-                    date: milestone.TASK_START,
-                    status: milestone.MILESTONE_STATUS,
-                    label: milestone.TASK_NAME,
-                    isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
-                }));
+                .map(milestone => {
+                    // CRITICAL FIX: Use INVESTMENT_NAME for full label (contains full text)
+                    // TASK_NAME only contains "SG3" for non-Clarity deployments
+                    const fullLabel = milestone.INVESTMENT_NAME || milestone.TASK_NAME;
+                    return {
+                        date: milestone.TASK_START,
+                        status: milestone.MILESTONE_STATUS,
+                        label: fullLabel,
+                        isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
+                    };
+                });
 
             // Process child data (EXACT structure from apiDataService.js lines 217-229)
             const childData = {
@@ -1150,12 +1183,17 @@ function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
                     inv.ROADMAP_ELEMENT && 
                     inv.ROADMAP_ELEMENT.includes('Milestones')
                 )
-                .map(milestone => ({
-                    date: milestone.TASK_START,
-                    status: milestone.MILESTONE_STATUS,
-                    label: milestone.TASK_NAME,
-                    isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
-                }));
+                .map(milestone => {
+                    // CRITICAL FIX: Use INVESTMENT_NAME for full label (contains full text)
+                    // TASK_NAME only contains "SG3" for non-Clarity deployments
+                    const fullLabel = milestone.INVESTMENT_NAME || milestone.TASK_NAME;
+                    return {
+                        date: milestone.TASK_START,
+                        status: milestone.MILESTONE_STATUS,
+                        label: fullLabel,
+                        isSG3: milestone.ROADMAP_ELEMENT.includes('SG3') || milestone.TASK_NAME.includes('SG3')
+                    };
+                });
 
             const childData = {
                 id: child.CHILD_ID,
@@ -1311,21 +1349,27 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
             const phaseData = projectInvestments.filter(inv => inv.ROADMAP_ELEMENT === 'Phases' && inv.TASK_NAME);
             
             
-            // Find milestone data - ENHANCED DEBUGGING
+            // Find milestone data - UPDATED: Removed SG3 filter to show ALL milestones
             const rawMilestoneData = projectInvestments.filter(inv => 
-                inv.TASK_NAME?.toLowerCase().includes('sg3') &&
                 (inv.ROADMAP_ELEMENT === 'Milestones - Other' || inv.ROADMAP_ELEMENT === 'Milestones - Deployment')
             );
 
             // Transform milestone data to match component expectations
-            const milestoneData = rawMilestoneData.map(milestone => ({
-                TASK_NAME: milestone.TASK_NAME,
-                MILESTONE_NAME: milestone.TASK_NAME, // Component looks for this
-                MILESTONE_DATE: milestone.TASK_START, // Component looks for this instead of TASK_START
-                TARGET_DATE: milestone.TASK_START, // Fallback property
-                STATUS: milestone.MILESTONE_STATUS || milestone.INV_OVERALL_STATUS,
-                ROADMAP_ELEMENT: milestone.ROADMAP_ELEMENT
-            }));
+            // CRITICAL FIX: The full milestone label is in INVESTMENT_NAME, not TASK_NAME
+            // TASK_NAME only contains "SG3" for non-Clarity deployments, but INVESTMENT_NAME has the full text like:
+            // "Case of the Future/Market: Global SG3" or "McKinsey Partnership/Market: Global SG3"
+            const milestoneData = rawMilestoneData.map(milestone => {
+                const fullMilestoneLabel = milestone.INVESTMENT_NAME || milestone.TASK_NAME || 'Milestone';
+                
+                return {
+                    TASK_NAME: fullMilestoneLabel,
+                    MILESTONE_NAME: fullMilestoneLabel, // Component looks for this
+                    MILESTONE_DATE: milestone.TASK_START, // Component looks for this instead of TASK_START
+                    TARGET_DATE: milestone.TASK_START, // Fallback property
+                    STATUS: milestone.MILESTONE_STATUS || milestone.INV_OVERALL_STATUS,
+                    ROADMAP_ELEMENT: milestone.ROADMAP_ELEMENT
+                };
+            });
 
             // Add to projects array using REAL data. NO MORE HARDCODED DATES.
             const projectData = {

@@ -272,44 +272,16 @@ def get_subprogram_data():
                 id_placeholders = ', '.join([f"'{pid}'" for pid in subprogram_ids])
                 investment_query += f" WHERE INV_EXT_ID IN ({id_placeholders})"
                 
-                # Debug the actual query being executed
-                logger.info(f"🎯 BACKEND DEBUG: About to execute investment query with filter for PROG000201")
-                logger.info(f"🎯 BACKEND DEBUG: Query length: {len(investment_query)} chars")
+               
                 
                 investment_results = databricks_client.execute_query(investment_query)
                 logger.info(f"Found {len(investment_results)} investment records for subprograms")
                 
-                # Debug ALL investment records for PROG000201 specifically
-                all_prog201_records = [inv for inv in investment_results if inv.get('INV_EXT_ID') == 'PROG000201']
-                if all_prog201_records:
-                    logger.info(f"🎯 BACKEND DEBUG: Found {len(all_prog201_records)} total PROG000201 investment records")
-                    for i, record in enumerate(all_prog201_records):
-                        logger.info(f"🎯 BACKEND DEBUG: Record {i+1} - ROADMAP_ELEMENT: {record.get('ROADMAP_ELEMENT')}, TASK_NAME: {record.get('TASK_NAME')}, INVESTMENT_NAME: {record.get('INVESTMENT_NAME')}")
-                else:
-                    logger.warning("🎯 BACKEND DEBUG: NO PROG000201 investment records found in query results!")
-                
-                # Debug CaTAlyst specifically
-                catalyst_records = [inv for inv in investment_results if inv.get('INV_EXT_ID') == 'PROG000201']
-                if catalyst_records:
-                    logger.info(f"🎯 BACKEND DEBUG: Found {len(catalyst_records)} CaTAlyst investment records by INV_EXT_ID")
-                    for record in catalyst_records:
-                        logger.info(f"🎯 BACKEND DEBUG: CaTAlyst record - ROADMAP_ELEMENT: {record.get('ROADMAP_ELEMENT')}, TASK_NAME: {record.get('TASK_NAME')}")
-                else:
-                    logger.warning("🎯 BACKEND DEBUG: NO CaTAlyst investment records found by INV_EXT_ID!")
-                    
-                    # Check if CaTAlyst exists by PROJECT_NAME
-                    catalyst_by_name = [inv for inv in investment_results if 'CaTAlyst' in str(inv.get('PROJECT_NAME', '')).upper()]
-                    if catalyst_by_name:
-                        logger.info(f"🎯 BACKEND DEBUG: Found {len(catalyst_by_name)} CaTAlyst records by PROJECT_NAME")
-                        for record in catalyst_by_name[:3]:  # Show first 3
-                            logger.info(f"🎯 BACKEND DEBUG: CaTAlyst by name - INV_EXT_ID: {record.get('INV_EXT_ID')}, PROJECT_NAME: {record.get('PROJECT_NAME')}, ROADMAP_ELEMENT: {record.get('ROADMAP_ELEMENT')}")
-                    else:
-                        logger.warning("🎯 BACKEND DEBUG: NO CaTAlyst investment records found by PROJECT_NAME either!")
-                    
-                    # Log sample INV_EXT_ID values to debug mismatch
-                    sample_ids = list(set([inv.get('INV_EXT_ID') for inv in investment_results[:10]]))
-                    logger.info(f"🎯 BACKEND DEBUG: Sample INV_EXT_ID values: {sample_ids}")
-
+                # DEBUG: Log milestone data to verify TASK_NAME from database
+                milestone_records = [r for r in investment_results if 'Milestones' in r.get('ROADMAP_ELEMENT', '')]
+                if milestone_records:
+                    logger.info(f"DEBUG - Sample milestone records from database:")
+                    for m in milestone_records[:5]:  # Log first 5 milestones
         # Structure and return the response
         response_data = {
             'status': 'success',

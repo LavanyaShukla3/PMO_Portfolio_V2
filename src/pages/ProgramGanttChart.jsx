@@ -66,7 +66,8 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
 
     // Display3: Group milestones by month using filtered milestones
     const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones);
-    const maxInitialWidth = monthWidth * 8; // Allow intelligent calculation up to 8 months
+    // INCREASED max width for better label visibility (from 8 to 16 months)
+    const maxInitialWidth = monthWidth * 16; // Allow intelligent calculation up to 16 months
 
 
     const processedMilestones = [];
@@ -280,12 +281,24 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         
         // Create flat list with proper hierarchy: program header + indented children
         Object.values(programGroups).forEach(group => {
-            // Add program header with special flag
+            // *** CALCULATE AGGREGATE DATA FOR PROGRAM HEADERS ***
+            let programMilestones = [];
+            
+            // Aggregate milestones from all children sub-programs
+            group.children.forEach(child => {
+                // Aggregate milestones for program headers
+                if (child.milestones && child.milestones.length > 0) {
+                    programMilestones.push(...child.milestones);
+                }
+            });
+            
+            // Add program header with special flag and aggregated milestones
             hierarchicalResult.push({
                 ...group.program,
                 isProgramHeader: true,
                 displayName: `📌 ${group.program.name}`,
-                originalName: group.program.name
+                originalName: group.program.name,
+                milestones: programMilestones // Aggregated milestones from all children
             });
             
             // Add indented children

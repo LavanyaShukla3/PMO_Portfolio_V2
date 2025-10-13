@@ -30,24 +30,9 @@ class CacheService:
         self.default_ttl = default_ttl  # 5 minutes default
         self.cache_dir = cache_dir
         
-        # Try to connect to Redis first
+        # Disable Redis for now - use disk cache only
         self.redis_client = None
-        if REDIS_AVAILABLE:
-            try:
-                self.redis_client = redis.Redis(
-                    host='localhost', 
-                    port=6379, 
-                    db=0, 
-                    decode_responses=True,
-                    socket_timeout=2,
-                    socket_connect_timeout=2
-                )
-                # Test connection
-                self.redis_client.ping()
-                logger.info("✅ Redis cache connected successfully")
-            except Exception as e:
-                logger.warning(f"⚠️ Redis not available: {e}. Falling back to disk cache.")
-                self.redis_client = None
+        logger.info("📀 Using disk cache only (Redis disabled for this session)")
         
         # Always initialize disk cache as fallback
         os.makedirs(cache_dir, exist_ok=True)

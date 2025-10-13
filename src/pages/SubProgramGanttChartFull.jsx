@@ -316,8 +316,23 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             });
 
 
-            // CRITICAL FIX: Use the correct date property for grouping milestones with filtered data
-            const monthlyGroups = groupMilestonesByMonth(timelineFilteredMilestones, 'MILESTONE_DATE');
+           
+            
+            const normalizedMilestones = timelineFilteredMilestones.map(m => {
+                const normalizedLabel = m.MILESTONE_NAME || m.TASK_NAME || 'Milestone';
+
+                
+                return {
+                    ...m,
+                    date: m.MILESTONE_DATE, // Map MILESTONE_DATE to date for consistency
+                    label: normalizedLabel,
+                    status: m.STATUS || m.MILESTONE_STATUS, // Preserve status
+                    originalTaskName: m.TASK_NAME // Keep original for debugging
+                };
+            });
+            
+            // Now group the normalized milestones (this will add 'day' property)
+            const monthlyGroups = groupMilestonesByMonth(normalizedMilestones, 'date');
             const processedMilestones = [];
 
             // Step 2: Process each monthly group to handle overlaps.
@@ -325,22 +340,16 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 // Determine if labels should be 'above' or 'below' the bar for this month.
                 const labelPosition = getMonthlyLabelPosition(monthKey);
 
-                // Create row-aware, vertical labels using Program page logic
-                const monthMilestonesNormalized = monthMilestones.map(m => ({
-                    date: m.MILESTONE_DATE,
-                    label: m.MILESTONE_NAME || m.TASK_NAME || 'Milestone'
-                }));
-                const allMilestonesNormalized = timelineFilteredMilestones.map(m => ({
-                    ...m,
-                    date: m.MILESTONE_DATE,
-                    label: m.MILESTONE_NAME || m.TASK_NAME || 'Milestone'
-                }));
-                const maxInitialWidth = monthWidth * 8;
+                // monthMilestones already have 'date', 'label', and 'day' properties from grouping
+                // Just need to pass them along to createVerticalMilestoneLabels
+                // INCREASED max width for better label visibility (from 8 to 16 months)
+                const maxInitialWidth = monthWidth * 16;
+                
                 const verticalLabelData = createVerticalMilestoneLabels(
-                    monthMilestonesNormalized,
+                    monthMilestones, // Already normalized with 'date', 'label', and 'day'
                     maxInitialWidth,
                     '14px',
-                    allMilestonesNormalized,
+                    normalizedMilestones, // Use all normalized milestones for context
                     monthWidth
                 );
                 const verticalLabels = verticalLabelData.labels;
@@ -349,9 +358,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
 
                 // Step 3: Create a single, consolidated milestone marker for the month.
                 const firstMilestoneInMonth = monthMilestones[0];
-                const milestoneDate = parseDate(firstMilestoneInMonth.MILESTONE_DATE);
+                // Use 'date' property (already set by normalization) or parsedDate (set by grouping)
+                const milestoneDate = firstMilestoneInMonth.parsedDate || parseDate(firstMilestoneInMonth.date || firstMilestoneInMonth.MILESTONE_DATE);
                 if (!milestoneDate) return;
-
                 
 
                 const x = calculateMilestonePosition(milestoneDate, startDate, monthWidth, projectEndDate);
@@ -361,10 +370,10 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                     ...firstMilestoneInMonth,
                     x,
                     date: milestoneDate,
-                    // Extract status correctly for milestone display
-                    status: firstMilestoneInMonth.STATUS === 'Completed' ? 'Completed' : 'Incomplete',
-                    label: firstMilestoneInMonth.MILESTONE_NAME || firstMilestoneInMonth.TASK_NAME || 'Milestone',
-                    isSG3: firstMilestoneInMonth.MILESTONE_NAME?.includes('SG3') || firstMilestoneInMonth.TASK_NAME?.includes('SG3'),
+                    // Extract status correctly for milestone display (status is already normalized)
+                    status: firstMilestoneInMonth.status === 'Completed' ? 'Completed' : 'Incomplete',
+                    label: firstMilestoneInMonth.label, // Use normalized label
+                    isSG3: firstMilestoneInMonth.label?.includes('SG3'),
                     isGrouped: monthMilestones.length > 1,
                     isMonthlyGrouped: true,
                     labelPosition: labelPosition,
@@ -1284,9 +1293,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                 (() => {
                                                     return row.phases
                                                         .filter(phase => phase && phase.TASK_NAME && phase.TASK_START && phase.TASK_FINISH) // Filter out null phases and ensure dates exist
-                                                        .map((phase, phaseIndex) => {
-                                                        console.log('🔍 Phase parsing for', row.PROJECT_NAME, '- Phase:', phase.TASK_NAME, 'Raw dates:', phase.TASK_START, 'to', phase.TASK_FINISH);
-                                                        
+                                                        .map((phase, phaseIndex) => {                                                        
                                                         const phaseStartDate = parseDate(phase.TASK_START);
                                                         const phaseEndDate = parseDate(phase.TASK_FINISH);
                                                         
@@ -1377,9 +1384,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                             )}
                                             
                                             {/* Render Milestones using already processed milestone data */}
-                                            {/* CRITICAL FIX: Don't render milestones for program headers */}
-                                            {!row.isProgramHeader && processedMilestones.length > 0 && console.log('🔵 About to render', processedMilestones.length, 'milestones for project:', row.PROJECT_NAME)}
-                                            {!row.isProgramHeader && processedMilestones.map((milestone, milestoneIndex) => {
+                                            {/* Render milestones for ALL rows including program headers (aggregated from children) */}
+                                            {processedMilestones.length > 0 && console.log('🔵 About to render', processedMilestones.length, 'milestones for project:', row.PROJECT_NAME, 'isProgramHeader:', row.isProgramHeader)}
+                                            {processedMilestones.map((milestone, milestoneIndex) => {
                                                 // COMPACT LAYOUT: Use the same milestoneY as calculated above for consistency
                                                 // This positions milestones to align with the compact Gantt bar position
                                                                                                 
