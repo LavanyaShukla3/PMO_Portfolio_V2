@@ -272,43 +272,9 @@ def get_subprogram_data():
                 id_placeholders = ', '.join([f"'{pid}'" for pid in subprogram_ids])
                 investment_query += f" WHERE INV_EXT_ID IN ({id_placeholders})"
                 
-               
-                
                 investment_results = databricks_client.execute_query(investment_query)
                 logger.info(f"Found {len(investment_results)} investment records for subprograms")
                 
-                # DEBUG: Log milestone data to verify TASK_NAME from database
-                milestone_records = [r for r in investment_results if 'Milestones' in r.get('ROADMAP_ELEMENT', '')]
-                if milestone_records:
-                    logger.info(f"DEBUG - Sample milestone records from database:")
-                    for m in milestone_records[:5]:  # Log first 5 milestones
-        # Structure and return the response
-        response_data = {
-            'status': 'success',
-            'data': {
-                'hierarchy': hierarchy_results,
-                'investment': investment_results,
-                'pagination': {
-                    'page': page,
-                    'limit': limit,
-                    'program_id': program_id,
-                    'total_items': len(hierarchy_results),
-                    'has_more': len(hierarchy_results) == limit
-                }
-            },
-            'mode': 'databricks'
-        }
-        
-        return jsonify(response_data)
-        
-    except Exception as e:
-        logger.error(f"Error in get_subprogram_data: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Failed to fetch subprogram data: {str(e)}',
-            'mode': 'databricks'
-        }), 500
-
         # Structure and return the response
         response_data = {
             'status': 'success',
