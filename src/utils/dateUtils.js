@@ -491,8 +491,8 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
         
         
         if (sameRowMilestones.length === 0) {
-            // No conflicts in the same row - be very generous with width
-            // Increase cap from 8 → 24 months to avoid unnecessary truncation
+            // No conflicts in the same row - be very generous with space
+            // Since no conflicts exist on this row, allow maximum extension
             effectiveMaxWidth = 24 * currentMonthWidth; // 24 months of space when no conflicts
         } else {
             // Find immediate neighbors in the same row
@@ -518,32 +518,46 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
             // SMART COLLISION AVOIDANCE: Calculate actual available space between neighbors
             let spanMonths;
             let textAnchor; // 'start', 'middle', or 'end'
-            const SAFETY_MARGIN = 0.15; // 15% safety margin to prevent collision
+            const SAFETY_MARGIN = 0.30; // 30% safety margin to prevent collision (increased from 15% for 24/36 month views)
             
             // Debug info for first milestone in month
             const firstMilestoneLabel = monthMilestones[0]?.label || 'Unknown';
             
             if (!leftNeighbor && !rightNeighbor) {
                 // Redundant with sameRowMilestones.length === 0, but keep safe default
-                spanMonths = 12; // Generous but not excessive
+                spanMonths = 24; // Very generous when no conflicts
                 textAnchor = 'middle';
             } else if (!leftNeighbor) {
-                // NO LEFT NEIGHBOR: Can extend left freely, limited by right neighbor
+                // NO LEFT NEIGHBOR: Can extend left freely, limited only by right neighbor
                 // Use RIGHT-ALIGN (text-anchor="end") - Label extends LEFTWARD from marker
                 const rightSpan = (rightNeighbor.parsedDate - currentMilestoneDate) / (1000 * 60 * 60 * 24 * 30.44);
                 
-                // Allow extension up to the right neighbor with safety margin
-                spanMonths = rightSpan * (1 - SAFETY_MARGIN);
+                // Allow generous extension LEFT since no left constraint
+                // Apply safety margin to avoid collision with right neighbor
+                spanMonths = Math.min(rightSpan * (1 - SAFETY_MARGIN), 24);
                 textAnchor = 'end'; // Right-align: label extends LEFT
                 
             } else if (!rightNeighbor) {
-                // NO RIGHT NEIGHBOR: Can extend right freely, limited by left neighbor  
+                // NO RIGHT NEIGHBOR: Can extend right freely
                 // Use LEFT-ALIGN (text-anchor="start") - Label extends RIGHTWARD from marker
+                // CRITICAL: Ensure we have enough space from left neighbor to avoid collision
+                
                 const leftSpan = (currentMilestoneDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
                 
-                // Allow generous extension to the right (no right constraint)
-                // Use left span as indicator of density, but allow more right extension
-                spanMonths = Math.max(leftSpan * (1 - SAFETY_MARGIN), 8); // Minimum 8 months to the right
+                // Only allow full extension if left neighbor is far enough away
+                // CRITICAL: Be very conservative to avoid collision with left neighbor
+                if (leftSpan >= 8) {
+                    // Left neighbor is very far - allow generous RIGHT extension
+                    spanMonths = 24;
+                } else if (leftSpan >= 4) {
+                    // Left neighbor is moderately far - allow moderate extension
+                    // Use the actual available space with safety margin
+                    spanMonths = Math.min(leftSpan * (1 - SAFETY_MARGIN), 12);
+                } else {
+                    // Left neighbor is close - be very conservative
+                    // Only extend enough to fit minimal text
+                    spanMonths = Math.max(leftSpan * 0.5, 3); // Very conservative: half the distance or minimum 3 months
+                }
                 textAnchor = 'start'; // Left-align: label extends RIGHT
                 
             } else {
@@ -555,8 +569,9 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 
                 // Available space = distance between neighbors minus safety margins on both sides
                 // Since label is centered, it can extend (totalSpace / 2) in each direction
+                // Cap at 10 months to prevent overlaps while allowing reasonable extension
                 const availableSpace = totalSpace * (1 - SAFETY_MARGIN);
-                spanMonths = availableSpace;
+                spanMonths = Math.min(availableSpace, 10);
                 textAnchor = 'middle'; // Center-align: label extends BOTH ways
                 
             }

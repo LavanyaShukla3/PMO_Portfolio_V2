@@ -71,9 +71,9 @@ const MilestoneMarker = ({
         
         const monthWidth = 100; // Default month width
         
-        // If no milestone data available, use more generous conservative width
+        // If no milestone data available, use conservative but generous width
         if (!currentMilestoneDate || !allMilestonesInProject?.length) {
-            const conservativeCharLimit = Math.floor((3 * monthWidth) / 6.5); // 3 months, more accurate char width
+            const conservativeCharLimit = Math.floor((6 * monthWidth) / 6.5); // 6 months, more accurate char width
             if (labelText.length <= conservativeCharLimit) return labelText;
             return labelText.substring(0, conservativeCharLimit - 3) + '...';
         }
@@ -112,8 +112,8 @@ const MilestoneMarker = ({
         
         if (sameRowMilestones.length === 0) {
             // No milestones on the same row - since alternating months don't collide,
-            // we can extend very generously across multiple months
-            const maxSpanMonths = 12; // Even more generous space since no collisions on this row
+            // we can extend very generously
+            const maxSpanMonths = 24; // Very generous space since no conflicts on this row
             const maxCharLimit = Math.floor((maxSpanMonths * monthWidth) / 6.5); // Reduced char width for better fitting
             return labelText.length <= maxCharLimit ? labelText : labelText.substring(0, maxCharLimit - 3) + '...';
         }
@@ -131,24 +131,48 @@ const MilestoneMarker = ({
         let leftBoundary, rightBoundary;
         
         if (!leftNeighbor) {
-            // No left neighbor on same row - extend to reasonable left boundary
+            // No left neighbor on same row - allow generous LEFT extension
             leftBoundary = new Date(currentDate);
-            leftBoundary.setMonth(currentDate.getMonth() - 8); // 8 months back since no conflicts
+            leftBoundary.setMonth(currentDate.getMonth() - 12); // 12 months back for generous extension
         } else {
-            // Use 70% towards left neighbor instead of midpoint for more generous space
+            // Use 70% towards left neighbor with safety margin
             const span = currentDate.getTime() - leftNeighbor.parsedDate.getTime();
-            const boundaryMs = leftNeighbor.parsedDate.getTime() + (span * 0.3);
+            const boundaryMs = leftNeighbor.parsedDate.getTime() + (span * 0.30); // 30% safety margin
             leftBoundary = new Date(boundaryMs);
         }
         
         if (!rightNeighbor) {
-            // No right neighbor on same row - extend to reasonable right boundary
+            // No right neighbor on same row - allow RIGHT extension
+            // But check if left neighbor is close - if so, be more conservative
             rightBoundary = new Date(currentDate);
-            rightBoundary.setMonth(currentDate.getMonth() + 8); // 8 months forward since no conflicts
+            
+            if (leftNeighbor) {
+                const leftSpanMs = currentDate.getTime() - leftNeighbor.parsedDate.getTime();
+                const leftSpanMonths = leftSpanMs / (1000 * 60 * 60 * 24 * 30.44);
+                
+                // CRITICAL: Be very conservative to avoid collision with left neighbor
+                if (leftSpanMonths >= 8) {
+                    // Left neighbor is very far (8+ months) - allow generous right extension
+                    rightBoundary.setMonth(currentDate.getMonth() + 24);
+                } else if (leftSpanMonths >= 4) {
+                    // Left neighbor is moderately far (4-8 months) - moderate extension
+                    // Use 70% of available space with safety
+                    const extension = Math.min(leftSpanMonths * 0.7, 12);
+                    rightBoundary.setMonth(currentDate.getMonth() + extension);
+                } else {
+                    // Left neighbor is close (< 4 months) - very conservative
+                    // Only extend half the distance or minimum 3 months
+                    const extension = Math.max(leftSpanMonths * 0.5, 3);
+                    rightBoundary.setMonth(currentDate.getMonth() + extension);
+                }
+            } else {
+                // No left neighbor either - maximum extension
+                rightBoundary.setMonth(currentDate.getMonth() + 24);
+            }
         } else {
-            // Use 70% towards right neighbor instead of midpoint for more generous space
+            // Use 70% towards right neighbor with safety margin
             const span = rightNeighbor.parsedDate.getTime() - currentDate.getTime();
-            const boundaryMs = currentDate.getTime() + (span * 0.7);
+            const boundaryMs = currentDate.getTime() + (span * 0.70); // 70% towards neighbor
             rightBoundary = new Date(boundaryMs);
         }
         
@@ -156,8 +180,19 @@ const MilestoneMarker = ({
         const spanMs = rightBoundary - leftBoundary;
         const spanMonths = spanMs / (1000 * 60 * 60 * 24 * 30.44); // Convert to months
         
-        // Since we're only considering same-row conflicts, be much more generous with space
-        const usableSpanMonths = Math.max(2.5, Math.min(spanMonths, 12)); // Min 2.5 months, max 12 months
+        // Apply different caps based on neighbor situation
+        let maxCap;
+        if (!leftNeighbor && !rightNeighbor) {
+            // Both sides free - very generous
+            maxCap = 24;
+        } else if (!leftNeighbor || !rightNeighbor) {
+            // One side is free - allow up to 24 months extension
+            maxCap = 24;
+        } else {
+            // Both neighbors present - be more conservative
+            maxCap = 10;
+        }
+        const usableSpanMonths = Math.max(2.5, Math.min(spanMonths, maxCap)); // Min 2.5 months, dynamic max
         const availableWidth = usableSpanMonths * monthWidth;
         
         // Calculate character limit with more accurate character width estimation
