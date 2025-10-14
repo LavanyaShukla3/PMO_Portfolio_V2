@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import TimelineAxis from '../components/TimelineAxis';
+import QuarterlyTimelineAxis from '../components/QuarterlyTimelineAxis';
 import MilestoneMarker from '../components/MilestoneMarker';
 import GanttBar from '../components/GanttBar';
 import PaginationControls from '../components/PaginationControls';
@@ -1163,13 +1164,21 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                         }}
                         onScroll={handleHeaderScroll}
                     >
-                        <TimelineAxis
-                            startDate={startDate}
-                            endDate={endDate}
-                            monthWidth={monthWidth}
-                            fontSize={constants.FONT_SIZE}
-                            
-                        />
+                        {(timelineView === 'future36' || timelineView === 'past36') ? (
+                            <QuarterlyTimelineAxis
+                                startDate={startDate}
+                                endDate={endDate}
+                                monthWidth={monthWidth}
+                                fontSize={constants.FONT_SIZE}
+                            />
+                        ) : (
+                            <TimelineAxis
+                                startDate={startDate}
+                                endDate={endDate}
+                                monthWidth={monthWidth}
+                                fontSize={constants.FONT_SIZE}
+                            />
+                        )}
                     </div>
 
                     {/* Gantt Chart Area */}

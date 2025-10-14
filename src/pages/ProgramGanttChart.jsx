@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import TimelineAxis from '../components/TimelineAxis';
+import QuarterlyTimelineAxis from '../components/QuarterlyTimelineAxis';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
 import MilestoneMarker from '../components/MilestoneMarker';
 import PaginationControls from '../components/PaginationControls';
@@ -659,15 +660,25 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                         <span className="text-sm font-semibold text-gray-700 truncate">Programs</span>
                     </div>
                     
-                    {/* Timeline Axis */}
+                    {/* Timeline Axis - Use Quarterly for 36-month views, Monthly for others */}
                     <div className="flex-1 overflow-hidden">
-                        <TimelineAxis
-                            startDate={startDate}
-                            endDate={endDate}
-                            monthWidth={dynamicMonthWidth}
-                            fontSize={responsiveConstants.FONT_SIZE}
-                            totalWidth="100%"
-                        />
+                        {(timelineView === 'future36' || timelineView === 'past36') ? (
+                            <QuarterlyTimelineAxis
+                                startDate={startDate}
+                                endDate={endDate}
+                                monthWidth={dynamicMonthWidth}
+                                fontSize={responsiveConstants.FONT_SIZE}
+                                totalWidth="100%"
+                            />
+                        ) : (
+                            <TimelineAxis
+                                startDate={startDate}
+                                endDate={endDate}
+                                monthWidth={dynamicMonthWidth}
+                                fontSize={responsiveConstants.FONT_SIZE}
+                                totalWidth="100%"
+                            />
+                        )}
                     </div>
                 </div>
             </div>

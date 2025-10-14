@@ -3,6 +3,7 @@ import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { parseDate, calculatePosition, calculateMilestonePosition, getTimelineRangeForView, isProjectInTimelineViewport, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels, getInitialScrollPosition, truncateLabel } from '../utils/dateUtils';
 import { differenceInDays, differenceInMonths } from 'date-fns';
 import TimelineAxis from '../components/TimelineAxis';
+import QuarterlyTimelineAxis from '../components/QuarterlyTimelineAxis';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
 import MilestoneMarker from '../components/MilestoneMarker';
 import GanttBar from '../components/GanttBar';
@@ -652,12 +653,21 @@ const RegionRoadMap = () => {
                                         onScroll={handleTimelineScroll}
                                     >
                                         {monthWidth && (
-                                            <TimelineAxis
-                                                startDate={startDate}
-                                                endDate={endDate}
-                                                monthWidth={monthWidth}
-                                                fontSize={responsiveConstants.FONT_SIZE}
-                                            />
+                                            (timelineView === 'future36' || timelineView === 'past36') ? (
+                                                <QuarterlyTimelineAxis
+                                                    startDate={startDate}
+                                                    endDate={endDate}
+                                                    monthWidth={monthWidth}
+                                                    fontSize={responsiveConstants.FONT_SIZE}
+                                                />
+                                            ) : (
+                                                <TimelineAxis
+                                                    startDate={startDate}
+                                                    endDate={endDate}
+                                                    monthWidth={monthWidth}
+                                                    fontSize={responsiveConstants.FONT_SIZE}
+                                                />
+                                            )
                                         )}
                                     </div>
                                 </div>
@@ -771,12 +781,21 @@ const RegionRoadMap = () => {
                                         </div>
 
                                         {monthWidth && (
-                                            <TimelineAxis
-                                                startDate={startDate}
-                                                endDate={endDate}
-                                                monthWidth={monthWidth}
-                                                fontSize={responsiveConstants.FONT_SIZE}
-                                            />
+                                            (timelineView === 'future36' || timelineView === 'past36') ? (
+                                                <QuarterlyTimelineAxis
+                                                    startDate={startDate}
+                                                    endDate={endDate}
+                                                    monthWidth={monthWidth}
+                                                    fontSize={responsiveConstants.FONT_SIZE}
+                                                />
+                                            ) : (
+                                                <TimelineAxis
+                                                    startDate={startDate}
+                                                    endDate={endDate}
+                                                    monthWidth={monthWidth}
+                                                    fontSize={responsiveConstants.FONT_SIZE}
+                                                />
+                                            )
                                         )}
                                     </div>
                                 </div>
