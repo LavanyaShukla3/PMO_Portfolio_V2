@@ -626,12 +626,9 @@ export function clearProgramDataCache(portfolioId = null) {
 export async function fetchProgramData(selectedPortfolioId = null, options = {}) {
     
     try {
-        // Use the same API endpoint as the original apiDataService.js
-        const response = await fetch('/api/data');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result = await response.json();
+        // Use the legacy full data endpoint - needs longer timeout for ~12,500 records
+        // Typical processing time: 30-40 seconds for full dataset
+        const result = await apiCall('/api/data', {}, 60000); // 60 seconds timeout
         
         if (result.status !== 'success') {
             throw new Error(result.message || 'Failed to fetch unified roadmap data');
@@ -1288,7 +1285,9 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
             limit: options.limit || 1000
         };
         
-        const response = await apiCall(endpoint, params);
+        // Subprogram endpoint needs longer timeout due to large investment data fetch
+        // Typical processing time: 60-90 seconds for ~12,000 investment records
+        const response = await apiCall(endpoint, params, 120000); // 120 seconds timeout
         const result = response;
         
         if (result.status !== 'success') {
