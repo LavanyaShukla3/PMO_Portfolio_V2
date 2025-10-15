@@ -17,9 +17,9 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 /**
- * Generic API call handler with error handling
+ * Generic API call handler with error handling and timeout
  */
-async function apiCall(endpoint, params = {}) {
+async function apiCall(endpoint, params = {}, timeoutMs = 30000) {
     try {
         const url = new URL(`${API_BASE_URL}${endpoint}`);
         
@@ -30,13 +30,19 @@ async function apiCall(endpoint, params = {}) {
             }
         });
 
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         
         const response = await fetch(url.toString(), {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
             },
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -50,6 +56,9 @@ async function apiCall(endpoint, params = {}) {
         return data;
         
     } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error(`Request timeout after ${timeoutMs/1000} seconds - Backend may be slow or unresponsive`);
+        }
         throw error;
     }
 }

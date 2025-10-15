@@ -79,6 +79,192 @@ export const parseDate = (dateString, context = '') => {
 };
 
 /**
+ * CRITICAL: Intelligently truncates milestone labels based on actual neighbor spacing
+ * This is the ONLY place truncation should happen - prevents double truncation
+ * Uses alternating row awareness (odd months above, even months below)
+ * IMPROVED for 36-month view overlap prevention
+ */
+export const intelligentTruncateLabel = (label, currentDate, allProjectMilestones, monthWidth = 100, fontSize = '14px') => {
+    if (!label || !currentDate || !allProjectMilestones?.length) {
+        return label;
+    }
+
+    // Character width estimation - tested and accurate for system fonts
+    const baseFontSize = parseInt(fontSize);
+    const avgCharWidth = baseFontSize * 0.48; // ~6.7px per character at 14px font
+    
+    // Detect if we're in a highly compressed view (36 months)
+    const isHighlyCompressedView = monthWidth < 40;
+
+    // Determine current milestone's label position (above/below based on month)
+    const currentMonth = currentDate.getMonth() + 1; // 1-based
+    const currentLabelPosition = currentMonth % 2 === 1 ? 'above' : 'below';
+
+    // Filter to ONLY milestones in the same row (alternating above/below system)
+    const sameRowMilestones = allProjectMilestones
+        .filter(m => {
+            if (!m.date) return false;
+            // Handle different date formats for comparison
+            const currentDateStr = currentDate.toISOString ? currentDate.toISOString().split('T')[0] : currentDate.toString();
+            const mDateStr = m.date.toString();
+            return mDateStr !== currentDateStr;
+        })
+        .map(m => {
+            const parsed = parseDate(m.date);
+            return { ...m, parsedDate: parsed };
+        })
+        .filter(m => {
+            if (!m.parsedDate || isNaN(m.parsedDate.getTime())) return false;
+            
+            const milestoneMonth = m.parsedDate.getMonth() + 1;
+            const milestoneLabelPosition = milestoneMonth % 2 === 1 ? 'above' : 'below';
+            
+            // CRITICAL: Only consider milestones in same row
+            return milestoneLabelPosition === currentLabelPosition;
+        })
+        .sort((a, b) => a.parsedDate - b.parsedDate);
+
+    // If no same-row neighbors, label can be full length
+    if (sameRowMilestones.length === 0) {
+        return label;
+    }
+
+    // Find immediate left and right neighbors in the same row
+    const leftNeighbor = sameRowMilestones
+        .filter(m => m.parsedDate < currentDate)
+        .sort((a, b) => b.parsedDate - a.parsedDate)[0]; // Closest before
+
+    const rightNeighbor = sameRowMilestones
+        .filter(m => m.parsedDate > currentDate)
+        .sort((a, b) => a.parsedDate - b.parsedDate)[0]; // Closest after
+
+    // SMART COMPRESSION HANDLING for 36-month view:
+    // - If NO right neighbor: Allow longer labels (15 chars) - like 24-month view behavior
+    // - If HAS right neighbor: Apply aggressive truncation (10 chars) to prevent overlap
+    if (isHighlyCompressedView) {
+        if (!rightNeighbor) {
+            // No right neighbor in compressed view - allow reasonable extension
+            const maxCharsNoRightNeighbor = 15;
+            if (label.length > maxCharsNoRightNeighbor) {
+                return label.substring(0, maxCharsNoRightNeighbor) + '…';
+            }
+            return label;
+        } else if (!leftNeighbor) {
+            // No left neighbor but has right - allow moderate extension
+            const maxCharsNoLeftNeighbor = 12;
+            if (label.length > maxCharsNoLeftNeighbor) {
+                return label.substring(0, maxCharsNoLeftNeighbor) + '…';
+            }
+            return label;
+        } else {
+            // Both neighbors exist - apply strict truncation
+            const maxCharsBothNeighbors = 10;
+            if (label.length > maxCharsBothNeighbors) {
+                return label.substring(0, maxCharsBothNeighbors) + '…';
+            }
+            return label;
+        }
+    }
+
+    let availableWidthPx;
+    const SAFETY_MARGIN = 0.88; // Use 88% of available space (balance between fitting and safety)
+
+    if (!leftNeighbor && !rightNeighbor) {
+        // Shouldn't happen, but handle gracefully
+        return label;
+    } 
+    else if (!leftNeighbor && rightNeighbor) {
+        // Case 1: No left neighbor, has right neighbor
+        // Label can extend left, but must stop before right neighbor
+        const monthsToRight = (rightNeighbor.parsedDate - currentDate) / (1000 * 60 * 60 * 24 * 30.44);
+        availableWidthPx = monthsToRight * monthWidth * SAFETY_MARGIN;
+    } 
+    else if (leftNeighbor && !rightNeighbor) {
+        // Case 2: Has left neighbor, no right neighbor
+        // CRITICAL: Must start after left neighbor's label ends
+        const monthsFromLeft = (currentDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
+        
+        // Get left neighbor's ACTUAL rendered label (it may already be truncated)
+        const leftLabel = leftNeighbor.label || leftNeighbor.MILESTONE_NAME || '';
+        
+        // CRITICAL FIX: DO NOT strip ellipsis - it's part of the rendered width!
+        // If label is "31st: Proces…", we need to count ALL 13 characters including ellipsis
+        const leftLabelWidthPx = leftLabel.length * avgCharWidth;
+        const leftLabelWidthMonths = leftLabelWidthPx / monthWidth;
+        
+        // Available space starts where left label ends
+        // Add larger buffer (0.8 months) for safety in 36-month view
+        const clearanceMonths = Math.max(0.5, monthsFromLeft - leftLabelWidthMonths - 0.8);
+        
+        // Very generous since no right constraint - can extend 10 months to the right
+        availableWidthPx = clearanceMonths * monthWidth + (10 * monthWidth);
+    } 
+    else {
+        // Case 3: Has BOTH left and right neighbors
+        // MOST CRITICAL CASE for 36-month view overlap issues
+        const monthsFromLeft = (currentDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
+        const monthsToRight = (rightNeighbor.parsedDate - currentDate) / (1000 * 60 * 60 * 24 * 30.44);
+        
+        // Get left neighbor's ACTUAL rendered label
+        const leftLabel = leftNeighbor.label || leftNeighbor.MILESTONE_NAME || '';
+        
+        // CRITICAL FIX: DO NOT strip ellipsis - count the full rendered label including ellipsis
+        // The ellipsis character is rendered and takes up space!
+        const leftLabelWidthPx = leftLabel.length * avgCharWidth;
+        const leftLabelWidthMonths = leftLabelWidthPx / monthWidth;
+        
+        // CRITICAL: Calculate TRUE clearance on left side
+        // This is where overlap happens if we get this wrong
+        const leftClearanceMonths = Math.max(0, monthsFromLeft - leftLabelWidthMonths - 1.0); // Increased buffer to 1.0 month for 36-month view
+        
+        // Total available space: left clearance + most of space to right neighbor
+        const totalMonths = leftClearanceMonths + (monthsToRight * SAFETY_MARGIN);
+        availableWidthPx = totalMonths * monthWidth;
+    }
+
+    // Ensure minimum reasonable width (enough for "Something...")
+    availableWidthPx = Math.max(100, availableWidthPx);
+
+    // Calculate maximum characters that fit
+    const ellipsisWidth = 3 * avgCharWidth; // Width of "..."
+    const maxChars = Math.floor((availableWidthPx - ellipsisWidth) / avgCharWidth);
+
+    // If label fits completely, return as-is
+    if (label.length * avgCharWidth <= availableWidthPx) {
+        return label;
+    }
+
+    // Truncate with ellipsis
+    const minChars = 12; // Minimum readable length
+    const effectiveMaxChars = Math.max(minChars, maxChars);
+    
+    const truncatedLabel = label.substring(0, effectiveMaxChars) + '…';
+    
+    // DEBUG LOGGING - Uncomment to debug 36-month overlaps
+    // console.log(`🔍 TRUNCATION: "${label}"`);
+    // console.log(`  Position: ${currentLabelPosition}`);
+    // console.log(`  Left: ${leftNeighbor ? (leftNeighbor.label || leftNeighbor.MILESTONE_NAME) : 'NONE'}`);
+    // console.log(`  Right: ${rightNeighbor ? (rightNeighbor.label || rightNeighbor.MILESTONE_NAME) : 'NONE'}`);
+    // if (leftNeighbor && rightNeighbor) {
+    //     const monthsFromLeft = (currentDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
+    //     const monthsToRight = (rightNeighbor.parsedDate - currentDate) / (1000 * 60 * 60 * 24 * 30.44);
+    //     const leftLabel = leftNeighbor.label || leftNeighbor.MILESTONE_NAME || '';
+    //     const leftLabelWidthPx = leftLabel.length * avgCharWidth;
+    //     const leftLabelWidthMonths = leftLabelWidthPx / monthWidth;
+    //     const leftClearanceMonths = Math.max(0, monthsFromLeft - leftLabelWidthMonths - 1.0);
+    //     console.log(`  Left label: "${leftLabel}" (${leftLabel.length} chars = ${leftLabelWidthMonths.toFixed(2)} months)`);
+    //     console.log(`  Months from left: ${monthsFromLeft.toFixed(2)}`);
+    //     console.log(`  Left clearance: ${leftClearanceMonths.toFixed(2)} months`);
+    //     console.log(`  Right space: ${monthsToRight.toFixed(2)} months`);
+    //     console.log(`  Available: ${availableWidthPx.toFixed(0)}px = ${maxChars} chars`);
+    // }
+    // console.log(`  Final: "${label.length > effectiveMaxChars ? truncatedLabel : label}"`);
+    // console.log('---');
+    
+    return truncatedLabel;
+};
+
+/**
  * Gets the full scrollable timeline range
  * @returns {{startDate: Date, endDate: Date}} Timeline range
  */
@@ -518,7 +704,7 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
             // SMART COLLISION AVOIDANCE: Calculate actual available space between neighbors
             let spanMonths;
             let textAnchor; // 'start', 'middle', or 'end'
-            const SAFETY_MARGIN = 0.30; // 30% safety margin to prevent collision (increased from 15% for 24/36 month views)
+            const SAFETY_MARGIN = 0.30; // 30% safety margin to prevent collision
             
             // Debug info for first milestone in month
             const firstMilestoneLabel = monthMilestones[0]?.label || 'Unknown';
@@ -534,7 +720,7 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 
                 // Allow generous extension LEFT since no left constraint
                 // Apply safety margin to avoid collision with right neighbor
-                spanMonths = Math.min(rightSpan * (1 - SAFETY_MARGIN), 24);
+                spanMonths = Math.min(rightSpan * (1 - SAFETY_MARGIN), 24); // 24-month cap for maximum LEFT extension
                 textAnchor = 'end'; // Right-align: label extends LEFT
                 
             } else if (!rightNeighbor) {
@@ -547,16 +733,16 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 // Only allow full extension if left neighbor is far enough away
                 // CRITICAL: Be very conservative to avoid collision with left neighbor
                 if (leftSpan >= 8) {
-                    // Left neighbor is very far - allow generous RIGHT extension
+                    // Left neighbor is very far (8+ months) - allow generous RIGHT extension
                     spanMonths = 24;
                 } else if (leftSpan >= 4) {
-                    // Left neighbor is moderately far - allow moderate extension
-                    // Use the actual available space with safety margin
+                    // Left neighbor is moderately far (4-8 months) - moderate extension
+                    // Use actual available space with safety margin
                     spanMonths = Math.min(leftSpan * (1 - SAFETY_MARGIN), 12);
                 } else {
-                    // Left neighbor is close - be very conservative
-                    // Only extend enough to fit minimal text
-                    spanMonths = Math.max(leftSpan * 0.5, 3); // Very conservative: half the distance or minimum 3 months
+                    // Left neighbor is close (< 4 months) - very conservative
+                    // Only extend half the distance or minimum 3 months
+                    spanMonths = Math.max(leftSpan * 0.5, 3);
                 }
                 textAnchor = 'start'; // Left-align: label extends RIGHT
                 
@@ -569,9 +755,9 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
                 
                 // Available space = distance between neighbors minus safety margins on both sides
                 // Since label is centered, it can extend (totalSpace / 2) in each direction
-                // Cap at 10 months to prevent overlaps while allowing reasonable extension
+                // Cap at 10 months to prevent overlaps when both neighbors present
                 const availableSpace = totalSpace * (1 - SAFETY_MARGIN);
-                spanMonths = Math.min(availableSpace, 10);
+                spanMonths = Math.min(availableSpace, 10); // 10-month cap when both neighbors present
                 textAnchor = 'middle'; // Center-align: label extends BOTH ways
                 
             }
@@ -605,8 +791,20 @@ export const createVerticalMilestoneLabels = (monthMilestones, maxWidth, fontSiz
         }
 
         
-        // ENHANCED: Use intelligent truncation based on alternating-row-aware max width
-        const result = truncateTextToWidth(label, effectiveMaxWidth, fontSize);
+        // Prefer neighbor-aware truncation when we have project-wide context
+        let result;
+        if (milestone.parsedDate && allProjectMilestones?.length > 1) {
+            result = intelligentTruncateLabel(
+                label,
+                milestone.parsedDate,
+                allProjectMilestones,
+                currentMonthWidth,
+                fontSize
+            );
+        } else {
+            // Fallback to basic width-based truncation
+            result = truncateTextToWidth(label, effectiveMaxWidth, fontSize);
+        }
         
         return result;
     });
@@ -673,7 +871,6 @@ export const calculateTextWidth = (text, fontSize = '14px') => {
  */
 export const truncateTextToWidth = (text, maxWidth, fontSize = '14px') => {
     if (!text) return '';
-
 
     // OPTIMIZED character width estimation for system fonts
     // Real testing shows system-ui fonts are narrower than 0.55

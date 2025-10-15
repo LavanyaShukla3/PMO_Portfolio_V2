@@ -8,8 +8,12 @@
  */
 const debugApiResponse = async (url, description) => {
     try {
+        // Add timeout to prevent indefinite hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         const responseText = await response.text();
         
         
@@ -28,7 +32,9 @@ const debugApiResponse = async (url, description) => {
         }
         
     } catch (networkError) {
-
+        if (networkError.name === 'AbortError') {
+            return { error: 'TIMEOUT', message: 'Request timed out after 10 seconds' };
+        }
         return { error: 'NETWORK_ERROR', message: networkError.message };
     }
 };
@@ -41,9 +47,10 @@ export const validateApiData = async () => {
     // Use the correct backend URLs
     const API_BASE_URL = 'http://localhost:5000';
     
+    // OPTIMIZED: Only check health endpoint for validation
+    // This is much faster than fetching actual data from Databricks
     const endpoints = [
-        { url: `${API_BASE_URL}/api/health`, name: 'Health Check' },
-        { url: `${API_BASE_URL}/api/data/portfolio?page=1&limit=5`, name: 'Portfolio Data Endpoint' }
+        { url: `${API_BASE_URL}/api/health`, name: 'Health Check' }
     ];
     
     const results = [];
@@ -59,7 +66,6 @@ export const validateApiData = async () => {
     if (allSuccess) {
         // Get mode from health check
         const healthResult = results.find(r => r.name === 'Health Check');
-        const dataResult = results.find(r => r.name === 'Main Data Endpoint');
         const mode = healthResult?.data?.mode || 'unknown';
         
         return {
@@ -67,8 +73,8 @@ export const validateApiData = async () => {
             errors: [],
             mode: mode,
             counts: {
-                portfolios: dataResult?.data?.counts?.hierarchy || 0,
-                investments: dataResult?.data?.counts?.investment || 0
+                portfolios: 0,
+                investments: 0
             }
         };
     } else {
@@ -79,6 +85,8 @@ export const validateApiData = async () => {
                     return `${r.name}: Backend server not running - received HTML instead of JSON. Please start Flask server with: python backend/app.py`;
                 } else if (r.error === 'NETWORK_ERROR') {
                     return `${r.name}: ${r.message} - Check if backend is running on localhost:5000`;
+                } else if (r.error === 'TIMEOUT') {
+                    return `${r.name}: Request timed out - Backend may be slow or unresponsive`;
                 } else {
                     return `${r.name}: ${r.error}`;
                 }

@@ -4,6 +4,7 @@ Enhanced with caching and pagination support.
 """
 import os
 import logging
+import threading
 from typing import List, Dict, Any, Optional, Tuple
 from databricks import sql
 from dotenv import load_dotenv
@@ -18,6 +19,11 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class QueryTimeoutError(Exception):
+    """Custom timeout exception for query execution"""
+    pass
 
 
 class DatabricksClient:
@@ -87,11 +93,22 @@ class DatabricksClient:
                 logger.info(f"🚀 Cache hit! Returning {len(cached_result)} cached rows")
                 return cached_result
         
-        if not self.connection:
-            self.connect()
+        # CRITICAL FIX: Always create a fresh connection for each query to avoid connection pool issues
+        # This prevents queries from hanging when multiple requests are made simultaneously
+        connection = None
+        cursor = None
         
         try:
-            cursor = self.connection.cursor()
+            # Create a new connection for this query
+            logger.info(f"🔌 Creating new Databricks connection for query")
+            connection = sql.connect(
+                server_hostname=self.server_hostname,
+                http_path=self.http_path,
+                access_token=self.access_token,
+                _user_agent_entry="PMO-Portfolio/1.0.0"
+            )
+            
+            cursor = connection.cursor()
             
             # Add reasonable LIMIT to very long queries if not already present
             # But allow larger limits for filtered queries (e.g., WHERE INV_EXT_ID IN (...))
@@ -105,7 +122,7 @@ class DatabricksClient:
                     logger.warning("Adding LIMIT 100 to large query to prevent timeout")
                     query = query.rstrip(';') + "\nLIMIT 100;"
             
-            logger.info(f"🔍 Executing query (length: {len(query)} chars)")
+            logger.info(f"🔍 Executing query (length: {len(query)} chars) with timeout: {timeout}s")
             
             # Execute with or without parameters
             if parameters:
@@ -117,11 +134,11 @@ class DatabricksClient:
             columns = [desc[0] for desc in cursor.description]
             
             # Fetch all results and convert to list of dictionaries
+            logger.info(f"📥 Fetching results...")
             results = []
             for row in cursor.fetchall():
                 results.append(dict(zip(columns, row)))
             
-            cursor.close()
             logger.info(f"✅ Query executed successfully, returned {len(results)} rows")
             
             # Cache the results if caching is enabled
@@ -133,6 +150,19 @@ class DatabricksClient:
         except Exception as e:
             logger.error(f"❌ Query execution failed: {str(e)}")
             raise
+        finally:
+            # Always close cursor and connection
+            if cursor:
+                try:
+                    cursor.close()
+                except:
+                    pass
+            if connection:
+                try:
+                    connection.close()
+                    logger.info(f"🔌 Closed Databricks connection")
+                except:
+                    pass
     
     def execute_query_unlimited(self, query: str, timeout: int = 1200, use_cache: bool = True, cache_ttl: int = 1800) -> List[Dict[str, Any]]:
         """
@@ -154,11 +184,20 @@ class DatabricksClient:
                 logger.info(f"🚀 Cache hit! Returning {len(cached_result)} cached rows")
                 return cached_result
         
-        if not self.connection:
-            self.connect()
+        # Create a new connection for this query
+        connection = None
+        cursor = None
         
         try:
-            cursor = self.connection.cursor()
+            logger.info(f"🔌 Creating new Databricks connection for unlimited query")
+            connection = sql.connect(
+                server_hostname=self.server_hostname,
+                http_path=self.http_path,
+                access_token=self.access_token,
+                _user_agent_entry="PMO-Portfolio/1.0.0"
+            )
+            
+            cursor = connection.cursor()
             
             # Don't add automatic LIMIT for unlimited queries
             logger.info(f"🔍 Executing unlimited query (length: {len(query)} chars)")
@@ -168,11 +207,11 @@ class DatabricksClient:
             columns = [desc[0] for desc in cursor.description]
             
             # Fetch all results and convert to list of dictionaries
+            logger.info(f"📥 Fetching unlimited results...")
             results = []
             for row in cursor.fetchall():
                 results.append(dict(zip(columns, row)))
             
-            cursor.close()
             logger.info(f"✅ Unlimited query executed successfully, returned {len(results)} rows")
             
             # Cache the results if caching is enabled
@@ -184,6 +223,19 @@ class DatabricksClient:
         except Exception as e:
             logger.error(f"❌ Unlimited query execution failed: {str(e)}")
             raise
+        finally:
+            # Always close cursor and connection
+            if cursor:
+                try:
+                    cursor.close()
+                except:
+                    pass
+            if connection:
+                try:
+                    connection.close()
+                    logger.info(f"🔌 Closed Databricks connection")
+                except:
+                    pass
     
     def execute_paginated_query(
         self, 
