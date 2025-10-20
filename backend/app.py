@@ -6,9 +6,11 @@ Enhanced with caching, pagination, and progressive loading support.
 import os
 import logging
 import json
+import time
 from typing import Dict, Any, Optional
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_compress import Compress
 from databricks_client import databricks_client
 from cache_service import cache_service
 from dotenv import load_dotenv
@@ -25,6 +27,18 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Enable GZIP compression (reduces response size by 70-80%)
+Compress(app)
+app.config['COMPRESS_MIMETYPES'] = [
+    'text/html',
+    'text/css',
+    'text/javascript',
+    'application/json',
+    'application/javascript'
+]
+app.config['COMPRESS_LEVEL'] = 6  # Balance between speed and compression
+app.config['COMPRESS_MIN_SIZE'] = 500  # Only compress responses > 500 bytes
 
 # Configure CORS
 frontend_urls = [
@@ -88,10 +102,11 @@ def test_databricks_connection():
 def get_portfolio_data():
     """Get paginated portfolio-level data with a proper filter for high performance."""
     try:
+        start_time = time.time()
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 50))
         
-        logger.info(f"Fetching portfolio data - Page: {page}, Limit: {limit}")
+        logger.info(f"📊 Fetching portfolio data - Page: {page}, Limit: {limit}")
         
         # 1. Read the base hierarchy query
         with open(HIERARCHY_QUERY_FILE, 'r') as f:
@@ -106,7 +121,10 @@ def get_portfolio_data():
         hierarchy_query += f" ORDER BY CHILD_ID LIMIT {limit} OFFSET {offset}"
         
         # 4. Execute the fast, filtered query. Caching is handled automatically by databricks_client.
+        hierarchy_start = time.time()
         hierarchy_results = databricks_client.execute_query(hierarchy_query)
+        hierarchy_time = time.time() - hierarchy_start
+        logger.info(f"⏱️ Hierarchy query: {hierarchy_time:.2f}s")
         
         investment_results = []
         
@@ -124,11 +142,17 @@ def get_portfolio_data():
             investment_query += f" WHERE INV_EXT_ID IN ('{portfolio_ids_str}')"
             
             # Execute the filtered investment query to get only portfolio-related investment records
+            investment_start = time.time()
             investment_results = databricks_client.execute_query(investment_query)
+            investment_time = time.time() - investment_start
+            logger.info(f"⏱️ Investment query: {investment_time:.2f}s")
             
             logger.info(f"Filtered investment query for {len(portfolio_ids)} portfolios, got {len(investment_results)} investment records")
 
-        # 6. Structure and return the response
+        total_time = time.time() - start_time
+        logger.info(f"⏱️ TOTAL API TIME: {total_time:.2f}s")
+        
+        # 6. Structure and return the response with performance metrics
         response_data = {
             'status': 'success',
             'data': {
@@ -141,7 +165,12 @@ def get_portfolio_data():
                     'has_more': len(hierarchy_results) == limit
                 }
             },
-            'mode': 'databricks'
+            'mode': 'databricks',
+            '_performance': {
+                'total_time': f"{total_time:.2f}s",
+                'hierarchy_time': f"{hierarchy_time:.2f}s" if 'hierarchy_time' in locals() else "0s",
+                'investment_time': f"{investment_time:.2f}s" if 'investment_time' in locals() else "0s"
+            }
         }
         
         return jsonify(response_data)
