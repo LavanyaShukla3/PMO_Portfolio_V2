@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 // Import only the welcome page eagerly - everything else loads on demand
 import WelcomePage from './pages/WelcomePage';
 import { GlobalDataCacheProvider, useGlobalDataCache } from './contexts/GlobalDataCacheContext';
@@ -33,8 +33,17 @@ function AppContent() {
         loadingStep, 
         error: cacheError,
         preserveViewState,
-        getViewState 
+        getViewState,
+        loadDataWithPriority // NEW: For priority-based loading
     } = useGlobalDataCache();
+    
+    // Handle view selection from welcome page
+    const handleViewSelection = useCallback((viewName) => {
+        console.log(`🎯 User selected ${viewName} view - loading with priority...`);
+        setCurrentView(viewName);
+        // Load the selected view's data first, then others in background
+        loadDataWithPriority(viewName);
+    }, [loadDataWithPriority]);
 
     // Validate data on app start (NON-BLOCKING - runs in background)
     useEffect(() => {
@@ -96,7 +105,7 @@ function AppContent() {
 
     // Show welcome page if no view is selected
     if (!currentView) {
-        return <WelcomePage onSelectView={setCurrentView} />;
+        return <WelcomePage onSelectView={handleViewSelection} />;
     }
 
     return (
@@ -136,7 +145,7 @@ function AppContent() {
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-3">
                                     <div className="w-4 h-4 bg-blue-500 rounded-full animate-spin border-2 border-white border-t-transparent"></div>
-                                    <span className="text-blue-700 font-medium">Loading Portfolio data...</span>
+                                    {/* <span className="text-blue-700 font-medium">Loading Portfolio data...</span> */}
                                     <span className="text-blue-600 text-sm">{loadingStep}</span>
                                 </div>
                                 

@@ -98,7 +98,7 @@ function dataReducer(state, action) {
                 ...state,
                 isLoading: true,
                 loadingProgress: 0,
-                loadingStep: 'Loading Portfolio...',
+                loadingStep: action.payload?.step || 'Loading data...',
                 error: null,
             };
             
@@ -210,8 +210,8 @@ export const GlobalDataCacheProvider = ({ children }) => {
         return (Date.now() - state.cacheTimestamp) < state.cacheExpiry;
     }, [state.cacheTimestamp, state.cacheExpiry]);
     
-    // Load all data in background using Promise.all
-    const loadAllData = useCallback(async (forceRefresh = false) => {
+    // Load data with priority based on selected view
+    const loadDataWithPriority = useCallback(async (priorityView = 'Portfolio', forceRefresh = false) => {
         // Prevent multiple simultaneous loads
         if (loadingRef.current && !forceRefresh) {
             console.log('🔄 Data loading already in progress...');
@@ -225,71 +225,129 @@ export const GlobalDataCacheProvider = ({ children }) => {
         }
         
         loadingRef.current = true;
-        dispatch({ type: ACTIONS.START_LOADING });
+        dispatch({ 
+            type: ACTIONS.START_LOADING,
+            payload: { step: `Loading ${priorityView} data...` }
+        });
         
         try {
-            console.log('🚀 Starting progressive data loading - Portfolio first, then background loading...');
+            console.log(`🚀 Starting progressive data loading - ${priorityView} first, then background loading...`);
             
-            // PHASE 1: Load Portfolio data FIRST and show UI immediately
-            console.log('📊 Phase 1: Loading Portfolio data for immediate display...');
+            // PHASE 1: Load PRIORITY VIEW data FIRST and show UI immediately
+            console.log(`📊 Phase 1: Loading ${priorityView} data for immediate display...`);
             try {
-                const portfolioData = await fetchPortfolioData(1, 5000);
+                let priorityData;
+                switch (priorityView) {
+                    case 'Portfolio':
+                        priorityData = await fetchPortfolioData(1, 5000);
+                        dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: priorityData });
+                        break;
+                    case 'Program':
+                        priorityData = await fetchProgramData(null, { page: 1, limit: 5000 });
+                        dispatch({ type: ACTIONS.SET_PROGRAM_DATA, payload: priorityData });
+                        // Also set a flag to show UI is ready
+                        dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: { projects: [] } }); // Dummy to unblock UI
+                        break;
+                    case 'SubProgram':
+                        priorityData = await fetchSubProgramData(null, { page: 1, limit: 15000 });
+                        dispatch({ type: ACTIONS.SET_SUBPROGRAM_DATA, payload: priorityData });
+                        dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: { projects: [] } }); // Dummy to unblock UI
+                        break;
+                    case 'Region':
+                        priorityData = await fetchRegionData(null, { page: 1, limit: 5000 });
+                        dispatch({ type: ACTIONS.SET_REGION_DATA, payload: priorityData });
+                        dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: { projects: [] } }); // Dummy to unblock UI
+                        break;
+                    default:
+                        priorityData = await fetchPortfolioData(1, 5000);
+                        dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: priorityData });
+                }
+                
                 dispatch({ 
                     type: ACTIONS.SET_LOADING_PROGRESS, 
-                    payload: { progress: 20, step: 'Portfolio data loaded - UI ready!' }
+                    payload: { progress: 20, step: `${priorityView} data loaded - UI ready!` }
                 });
-                dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: portfolioData });
-                console.log('✅ Portfolio data loaded - UI can now be displayed!');
+                console.log(`✅ ${priorityView} data loaded - UI can now be displayed!`);
             } catch (error) {
-                console.error('❌ Failed to load portfolio data:', error);
+                console.error(`❌ Failed to load ${priorityView} data:`, error);
             }
             
-            // PHASE 2: Continue loading other data in background
+            // PHASE 2: Continue loading other data in background (skip priority view)
             console.log('🔄 Phase 2: Loading remaining data in background...');
             dispatch({ type: ACTIONS.START_BACKGROUND_LOADING });
             
-            const backgroundPromises = [
-                
-                // Program data (load for all portfolios)
-                fetchProgramData(null, { page: 1, limit: 5000 }).then(data => {
-                    dispatch({ 
-                        type: ACTIONS.SET_LOADING_PROGRESS, 
-                        payload: { progress: 40, step: 'Program data loaded' }
-                    });
-                    dispatch({ type: ACTIONS.SET_PROGRAM_DATA, payload: data });
-                    return { type: 'program', data };
-                }).catch(error => {
-                    console.error('❌ Failed to load program data:', error);
-                    return { type: 'program', data: null, error };
-                }),
-                
-                // SubProgram data (load for all programs)
-                fetchSubProgramData(null, { page: 1, limit: 15000 }).then(data => {
-                    dispatch({ 
-                        type: ACTIONS.SET_LOADING_PROGRESS, 
-                        payload: { progress: 60, step: 'SubProgram data loaded' }
-                    });
-                    dispatch({ type: ACTIONS.SET_SUBPROGRAM_DATA, payload: data });
-                    return { type: 'subProgram', data };
-                }).catch(error => {
-                    console.error('❌ Failed to load subprogram data:', error);
-                    return { type: 'subProgram', data: null, error };
-                }),
-                
-                // Region data
-                fetchRegionData(null, { page: 1, limit: 5000 }).then(data => {
-                    dispatch({ 
-                        type: ACTIONS.SET_LOADING_PROGRESS, 
-                        payload: { progress: 80, step: 'Region data loaded' }
-                    });
-                    dispatch({ type: ACTIONS.SET_REGION_DATA, payload: data });
-                    return { type: 'region', data };
-                }).catch(error => {
-                    console.error('❌ Failed to load region data:', error);
-                    return { type: 'region', data: null, error };
-                }),
-                
-                // Region filter options
+            const backgroundPromises = [];
+            
+            // Portfolio data (skip if already loaded as priority)
+            if (priorityView !== 'Portfolio') {
+                backgroundPromises.push(
+                    fetchPortfolioData(1, 5000).then(data => {
+                        dispatch({ 
+                            type: ACTIONS.SET_LOADING_PROGRESS, 
+                            payload: { progress: 30, step: 'Portfolio data loaded' }
+                        });
+                        dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: data });
+                        return { type: 'portfolio', data };
+                    }).catch(error => {
+                        console.error('❌ Failed to load portfolio data:', error);
+                        return { type: 'portfolio', data: null, error };
+                    })
+                );
+            }
+            
+            // Program data (skip if already loaded as priority)
+            if (priorityView !== 'Program') {
+                backgroundPromises.push(
+                    fetchProgramData(null, { page: 1, limit: 5000 }).then(data => {
+                        dispatch({ 
+                            type: ACTIONS.SET_LOADING_PROGRESS, 
+                            payload: { progress: 40, step: 'Program data loaded' }
+                        });
+                        dispatch({ type: ACTIONS.SET_PROGRAM_DATA, payload: data });
+                        return { type: 'program', data };
+                    }).catch(error => {
+                        console.error('❌ Failed to load program data:', error);
+                        return { type: 'program', data: null, error };
+                    })
+                );
+            }
+            
+            // SubProgram data (skip if already loaded as priority)
+            if (priorityView !== 'SubProgram') {
+                backgroundPromises.push(
+                    fetchSubProgramData(null, { page: 1, limit: 15000 }).then(data => {
+                        dispatch({ 
+                            type: ACTIONS.SET_LOADING_PROGRESS, 
+                            payload: { progress: 60, step: 'SubProgram data loaded' }
+                        });
+                        dispatch({ type: ACTIONS.SET_SUBPROGRAM_DATA, payload: data });
+                        return { type: 'subProgram', data };
+                    }).catch(error => {
+                        console.error('❌ Failed to load subprogram data:', error);
+                        return { type: 'subProgram', data: null, error };
+                    })
+                );
+            }
+            
+            // Region data (skip if already loaded as priority)
+            if (priorityView !== 'Region') {
+                backgroundPromises.push(
+                    fetchRegionData(null, { page: 1, limit: 5000 }).then(data => {
+                        dispatch({ 
+                            type: ACTIONS.SET_LOADING_PROGRESS, 
+                            payload: { progress: 80, step: 'Region data loaded' }
+                        });
+                        dispatch({ type: ACTIONS.SET_REGION_DATA, payload: data });
+                        return { type: 'region', data };
+                    }).catch(error => {
+                        console.error('❌ Failed to load region data:', error);
+                        return { type: 'region', data: null, error };
+                    })
+                );
+            }
+            
+            // Region filter options (always load)
+            backgroundPromises.push(
                 (async () => {
                     try {
                         const data = await getRegionFilterOptions();
@@ -312,8 +370,8 @@ export const GlobalDataCacheProvider = ({ children }) => {
                             error
                         };
                     }
-                })(),
-            ];
+                })()
+            );
             
             // Wait for background data to load
             console.log('⏳ Waiting for background data loading to complete...');
@@ -348,10 +406,16 @@ export const GlobalDataCacheProvider = ({ children }) => {
         }
     }, [isCacheValid, state.portfolioData]);
     
-    // Auto-load data on mount
+    // Wrapper for backward compatibility - loads Portfolio by default
+    const loadAllData = useCallback(async (forceRefresh = false) => {
+        return loadDataWithPriority('Portfolio', forceRefresh);
+    }, [loadDataWithPriority]);
+    
+    // Auto-load data on mount (Portfolio by default - but will be overridden by App.jsx)
     useEffect(() => {
-        loadAllData();
-    }, [loadAllData]);
+        // Don't auto-load - let App.jsx control when to load based on selected view
+        // loadAllData();
+    }, []);
     
     // Preserve view state
     const preserveViewState = useCallback((viewName, viewState) => {
@@ -411,6 +475,7 @@ export const GlobalDataCacheProvider = ({ children }) => {
         cacheTimestamp: state.cacheTimestamp,
         refreshData,
         loadAllData,
+        loadDataWithPriority, // NEW: Allow priority-based loading
         
         // State preservation
         preserveViewState,
