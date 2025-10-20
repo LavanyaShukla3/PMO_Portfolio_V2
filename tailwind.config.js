@@ -14,4 +14,14 @@ module.exports = {
     },
   },
   plugins: [],
+  // Performance optimizations
+  safelist: [], // Explicitly empty if no dynamic classes
+  // Performance optimization for development
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
+  // Reduce CSS file size
+  corePlugins: {
+    preflight: true,
+  }
 }

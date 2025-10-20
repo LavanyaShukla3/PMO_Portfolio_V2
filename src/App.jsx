@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import PortfolioGanttChart from './pages/PortfolioGanttChart';
-import ProgramGanttChart from './pages/ProgramGanttChart';
-import SubProgramGanttChart from './pages/SubProgramGanttChartFull';
-import RegionRoadMap from './pages/RegionRoadMap';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+// Import only the welcome page eagerly - everything else loads on demand
+import WelcomePage from './pages/WelcomePage';
 import { GlobalDataCacheProvider, useGlobalDataCache } from './contexts/GlobalDataCacheContext';
 import { validateApiData } from './utils/apiValidation';
 import './App.css';
 
+// Lazy load ALL page components - they only compile when user selects them
+const PortfolioGanttChart = lazy(() => import('./pages/PortfolioGanttChart'));
+const ProgramGanttChart = lazy(() => import('./pages/ProgramGanttChart'));
+const SubProgramGanttChart = lazy(() => import('./pages/SubProgramGanttChartFull'));
+const RegionRoadMap = lazy(() => import('./pages/RegionRoadMap'));
+
 // Main App Content Component
 function AppContent() {
-    const [currentView, setCurrentView] = useState('Portfolio'); // Start with Portfolio view as default
+    const [currentView, setCurrentView] = useState(null); // Start with NO view selected (welcome page)
     const [selectedPortfolioId, setSelectedPortfolioId] = useState(null);
     const [selectedPortfolioName, setSelectedPortfolioName] = useState('');
     const [selectedSubProgramId, setSelectedSubProgramId] = useState(null);
@@ -90,9 +94,13 @@ function AppContent() {
         }
     };
 
+    // Show welcome page if no view is selected
+    if (!currentView) {
+        return <WelcomePage onSelectView={setCurrentView} />;
+    }
+
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Error Banner (non-blocking) */}
+        <div className="min-h-screen bg-gray-50">{/* Error Banner (non-blocking) */}
             {showErrorBanner && (
                 <div className="fixed top-0 left-0 right-0 z-50 bg-red-50 border-b border-red-400">
                     <div className="max-w-7xl mx-auto px-4 py-2">
@@ -213,51 +221,57 @@ function AppContent() {
 
             <main className="mx-auto px-4 py-6">
                 <div className="bg-white shadow rounded-lg p-6">
-                    {currentView === 'Portfolio' ? (
-                        <PortfolioGanttChart
-                            onDrillToProgram={(portfolioId, portfolioName) => {
-                                setSelectedPortfolioId(portfolioId);
-                                setSelectedPortfolioName(portfolioName);
-                                setCurrentView('Program');
-                            }}
-                        />
-                    ) : currentView === 'Program' ? (
-                        <ProgramGanttChart
-                            selectedPortfolioId={selectedPortfolioId}
-                            selectedPortfolioName={selectedPortfolioName}
-                            onBackToPortfolio={() => {
-                                setCurrentView('Portfolio');
-                                setSelectedPortfolioId(null);
-                                setSelectedPortfolioName('');
-                            }}
-                            onDrillToSubProgram={(subProgramId, subProgramName) => {
-                                // Task 1: Drill-through from Program to SubProgram
-                                setSelectedSubProgramId(subProgramId);
-                                setSelectedSubProgramName(subProgramName);
-                                setCurrentView('SubProgram');
-                            }}
-                        />
-                    ) : currentView === 'SubProgram' ? (
-                        <SubProgramGanttChart
-                            selectedSubProgramId={selectedSubProgramId}
-                            selectedSubProgramName={selectedSubProgramName}
-                            selectedProgramName={selectedPortfolioName} // Pass portfolio name for breadcrumb context
-                            selectedProgramId={selectedPortfolioId} // Pass program ID for API calls
-                            onNavigateUp={() => {
-                                setCurrentView('Program');
-                                setSelectedSubProgramId(null);
-                                setSelectedSubProgramName('');
-                            }}
-                            onBackToProgram={() => {
-                                setCurrentView('Program');
-                                setSelectedSubProgramId(null);
-                                setSelectedSubProgramName('');
-                            }}
-                        />
-                    ) : (
-                        <RegionRoadMap />
-                    )}
-
+                    <Suspense fallback={
+                        <div className="view-loading">
+                            <div className="view-loading-spinner"></div>
+                            <p className="view-loading-text">Loading {currentView} view...</p>
+                        </div>
+                    }>
+                        {currentView === 'Portfolio' ? (
+                            <PortfolioGanttChart
+                                onDrillToProgram={(portfolioId, portfolioName) => {
+                                    setSelectedPortfolioId(portfolioId);
+                                    setSelectedPortfolioName(portfolioName);
+                                    setCurrentView('Program');
+                                }}
+                            />
+                        ) : currentView === 'Program' ? (
+                            <ProgramGanttChart
+                                selectedPortfolioId={selectedPortfolioId}
+                                selectedPortfolioName={selectedPortfolioName}
+                                onBackToPortfolio={() => {
+                                    setCurrentView('Portfolio');
+                                    setSelectedPortfolioId(null);
+                                    setSelectedPortfolioName('');
+                                }}
+                                onDrillToSubProgram={(subProgramId, subProgramName) => {
+                                    // Task 1: Drill-through from Program to SubProgram
+                                    setSelectedSubProgramId(subProgramId);
+                                    setSelectedSubProgramName(subProgramName);
+                                    setCurrentView('SubProgram');
+                                }}
+                            />
+                        ) : currentView === 'SubProgram' ? (
+                            <SubProgramGanttChart
+                                selectedSubProgramId={selectedSubProgramId}
+                                selectedSubProgramName={selectedSubProgramName}
+                                selectedProgramName={selectedPortfolioName} // Pass portfolio name for breadcrumb context
+                                selectedProgramId={selectedPortfolioId} // Pass program ID for API calls
+                                onNavigateUp={() => {
+                                    setCurrentView('Program');
+                                    setSelectedSubProgramId(null);
+                                    setSelectedSubProgramName('');
+                                }}
+                                onBackToProgram={() => {
+                                    setCurrentView('Program');
+                                    setSelectedSubProgramId(null);
+                                    setSelectedSubProgramName('');
+                                }}
+                            />
+                        ) : (
+                            <RegionRoadMap />
+                        )}
+                    </Suspense>
                 </div>
             </main>
         </div>

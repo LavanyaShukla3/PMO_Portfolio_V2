@@ -8,7 +8,7 @@ import { getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calcul
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
-import { differenceInDays } from 'date-fns';
+import differenceInDays from 'date-fns/differenceInDays';
 import '../styles/responsive-gantt.css';
 
 // Fixed constants (zoom removed)

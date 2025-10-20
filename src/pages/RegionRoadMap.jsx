@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { parseDate, calculatePosition, calculateMilestonePosition, getTimelineRangeForView, isProjectInTimelineViewport, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels, getInitialScrollPosition, truncateLabel } from '../utils/dateUtils';
-import { differenceInDays, differenceInMonths } from 'date-fns';
+import differenceInDays from 'date-fns/differenceInDays';
+import differenceInMonths from 'date-fns/differenceInMonths';
 import TimelineAxis from '../components/TimelineAxis';
 import QuarterlyTimelineAxis from '../components/QuarterlyTimelineAxis';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';

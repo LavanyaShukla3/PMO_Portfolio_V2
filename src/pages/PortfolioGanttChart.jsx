@@ -7,7 +7,7 @@ import PaginationControls from '../components/PaginationControls';
 import { getTimelineRange, getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calculatePosition, calculateMilestonePosition, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels, truncateLabel } from '../utils/dateUtils';
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
-import { differenceInDays } from 'date-fns';
+import differenceInDays from 'date-fns/differenceInDays';
 
 // Fixed constants (zoom removed)
 const getResponsiveConstants = () => {

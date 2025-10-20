@@ -1,4 +1,12 @@
-import { parse, differenceInDays, addMonths, subMonths, startOfMonth, getMonth, getYear, format } from 'date-fns';
+// Tree-shaking optimized imports - import only what we need
+import parse from 'date-fns/parse';
+import differenceInDays from 'date-fns/differenceInDays';
+import addMonths from 'date-fns/addMonths';
+import subMonths from 'date-fns/subMonths';
+import startOfMonth from 'date-fns/startOfMonth';
+import getMonth from 'date-fns/getMonth';
+import getYear from 'date-fns/getYear';
+import format from 'date-fns/format';
 
 // Milestone Layout Configuration: Enforcing strict rules for milestone display
 export const MILESTONE_LAYOUT_TYPE = 'vertical'; // Strict rule: vertical stacking for multiple milestones per month

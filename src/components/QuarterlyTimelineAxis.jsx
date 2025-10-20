@@ -1,5 +1,9 @@
 import React from 'react';
-import { format, addMonths, differenceInMonths, getMonth, getYear } from 'date-fns';
+import format from 'date-fns/format';
+import addMonths from 'date-fns/addMonths';
+import differenceInMonths from 'date-fns/differenceInMonths';
+import getMonth from 'date-fns/getMonth';
+import getYear from 'date-fns/getYear';
 
 /**
  * QuarterlyTimelineAxis - Displays quarters instead of months for 36-month views

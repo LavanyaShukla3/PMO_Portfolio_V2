@@ -1,5 +1,7 @@
 import React from 'react';
-import { format, addMonths, differenceInMonths } from 'date-fns';
+import format from 'date-fns/format';
+import addMonths from 'date-fns/addMonths';
+import differenceInMonths from 'date-fns/differenceInMonths';
 
 const TimelineAxis = ({
     startDate = new Date(),

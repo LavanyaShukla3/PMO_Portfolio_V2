@@ -7,7 +7,8 @@ import PaginationControls from '../components/PaginationControls';
 import { getTimelineRangeForView, isProjectInTimelineViewport, parseDate, calculatePosition, calculateMilestonePosition, groupMilestonesByMonth, getMonthlyLabelPosition, createVerticalMilestoneLabels, getInitialScrollPosition, truncateLabel } from '../utils/dateUtils';
 import { useGlobalDataCache } from '../contexts/GlobalDataCacheContext';
 import { getPaginationInfo, getPaginatedData, handlePageChange, ITEMS_PER_PAGE } from '../services/paginationService';
-import { differenceInDays, differenceInMonths } from 'date-fns';
+import differenceInDays from 'date-fns/differenceInDays';
+import differenceInMonths from 'date-fns/differenceInMonths';
 import '../styles/responsive-gantt.css';
 
 // Fixed constants (zoom removed)
