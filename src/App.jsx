@@ -32,7 +32,7 @@ function AppContent() {
         getViewState 
     } = useGlobalDataCache();
 
-    // Validate data on app start
+    // Validate data on app start (NON-BLOCKING - runs in background)
     useEffect(() => {
         const validateData = async () => {
             try {
@@ -48,46 +48,16 @@ function AppContent() {
             }
         };
 
+        // Start validation in background
         validateData();
+        
+        // OPTIMIZATION: Don't block UI - let it render immediately
+        // Set isLoading to false so the UI can start rendering while validation runs
+        setDataValidation(prev => ({ ...prev, isLoading: false, isValid: true }));
     }, []);
 
-    // Show loading state
-    if (dataValidation.isLoading) {
-        return (
-            <div className="min-h-screen bg-gray-50 p-4">
-                <div className="max-w-7xl mx-auto">
-                    <div className="bg-blue-50 border border-blue-400 text-blue-700 px-4 py-3 rounded">
-                        <h2 className="text-lg font-semibold mb-2">Loading Data...</h2>
-                        <p>Connecting to backend and validating data...</p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Show error state
-    if (!dataValidation.isValid) {
-        return (
-            <div className="min-h-screen bg-gray-50 p-4">
-                <div className="max-w-7xl mx-auto">
-                    <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">
-                        <h2 className="text-lg font-semibold mb-2">Data Validation Error</h2>
-                        <ul className="list-disc list-inside mb-3">
-                            {dataValidation.errors.map((error, index) => (
-                                <li key={index}>{error}</li>
-                            ))}
-                        </ul>
-                        <button 
-                            onClick={() => window.location.reload()} 
-                            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                        >
-                            Retry
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // Show error banner if validation fails (but don't block UI)
+    const showErrorBanner = !dataValidation.isLoading && dataValidation.isValid === false && dataValidation.errors.length > 0;
 
     // Handle view changes with state preservation
     const handleViewChange = (newView) => {
@@ -122,6 +92,26 @@ function AppContent() {
 
     return (
         <div className="min-h-screen bg-gray-50">
+            {/* Error Banner (non-blocking) */}
+            {showErrorBanner && (
+                <div className="fixed top-0 left-0 right-0 z-50 bg-red-50 border-b border-red-400">
+                    <div className="max-w-7xl mx-auto px-4 py-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                                <span className="text-red-700 text-sm font-medium">API validation warning: {dataValidation.errors[0]}</span>
+                            </div>
+                            <button 
+                                onClick={() => setDataValidation(prev => ({ ...prev, errors: [] }))}
+                                className="text-red-600 hover:text-red-800"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             {/* Global Loading Indicator */}
             {(cacheLoading || isBackgroundLoading || cacheError) && (
                 <div className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-sm z-50">

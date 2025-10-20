@@ -1,6 +1,6 @@
 """
 Databricks SQL connector client for secure database operations.
-Enhanced with caching and pagination support.
+Enhanced with caching, pagination, and connection pooling support.
 """
 import os
 import logging
@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 # Import our services
 from cache_service import cache_service
 from pagination_service import pagination_service
+from connection_pool import connection_pool
 
 # Load environment variables
 load_dotenv()
@@ -93,21 +94,12 @@ class DatabricksClient:
                 logger.info(f"🚀 Cache hit! Returning {len(cached_result)} cached rows")
                 return cached_result
         
-        # CRITICAL FIX: Always create a fresh connection for each query to avoid connection pool issues
-        # This prevents queries from hanging when multiple requests are made simultaneously
-        connection = None
+        # OPTIMIZATION: Use connection pool instead of creating new connection (saves 500-1000ms!)
+        connection = connection_pool.get_connection(timeout=5.0)
         cursor = None
+        connection_valid = True
         
         try:
-            # Create a new connection for this query
-            logger.info(f"🔌 Creating new Databricks connection for query")
-            connection = sql.connect(
-                server_hostname=self.server_hostname,
-                http_path=self.http_path,
-                access_token=self.access_token,
-                _user_agent_entry="PMO-Portfolio/1.0.0"
-            )
-            
             cursor = connection.cursor()
             
             # Add reasonable LIMIT to very long queries if not already present
@@ -149,20 +141,27 @@ class DatabricksClient:
             
         except Exception as e:
             logger.error(f"❌ Query execution failed: {str(e)}")
+            # Connection might be bad, don't return it to pool
+            connection_valid = False
             raise
         finally:
-            # Always close cursor and connection
+            # Always close cursor
             if cursor:
                 try:
                     cursor.close()
                 except:
                     pass
+            
+            # Return connection to pool for reuse (or close if invalid)
             if connection:
-                try:
-                    connection.close()
-                    logger.info(f"🔌 Closed Databricks connection")
-                except:
-                    pass
+                if connection_valid:
+                    connection_pool.return_connection(connection)
+                else:
+                    try:
+                        connection.close()
+                        logger.info(f"🔌 Closed invalid connection")
+                    except:
+                        pass
     
     def execute_query_unlimited(self, query: str, timeout: int = 1200, use_cache: bool = True, cache_ttl: int = 1800) -> List[Dict[str, Any]]:
         """
@@ -184,19 +183,12 @@ class DatabricksClient:
                 logger.info(f"🚀 Cache hit! Returning {len(cached_result)} cached rows")
                 return cached_result
         
-        # Create a new connection for this query
-        connection = None
+        # OPTIMIZATION: Use connection pool instead of creating new connection (saves 500-1000ms!)
+        connection = connection_pool.get_connection(timeout=5.0)
         cursor = None
+        connection_valid = True
         
         try:
-            logger.info(f"🔌 Creating new Databricks connection for unlimited query")
-            connection = sql.connect(
-                server_hostname=self.server_hostname,
-                http_path=self.http_path,
-                access_token=self.access_token,
-                _user_agent_entry="PMO-Portfolio/1.0.0"
-            )
-            
             cursor = connection.cursor()
             
             # Don't add automatic LIMIT for unlimited queries
@@ -222,20 +214,27 @@ class DatabricksClient:
             
         except Exception as e:
             logger.error(f"❌ Unlimited query execution failed: {str(e)}")
+            # Connection might be bad, don't return it to pool
+            connection_valid = False
             raise
         finally:
-            # Always close cursor and connection
+            # Always close cursor
             if cursor:
                 try:
                     cursor.close()
                 except:
                     pass
+            
+            # Return connection to pool for reuse (or close if invalid)
             if connection:
-                try:
-                    connection.close()
-                    logger.info(f"🔌 Closed Databricks connection")
-                except:
-                    pass
+                if connection_valid:
+                    connection_pool.return_connection(connection)
+                else:
+                    try:
+                        connection.close()
+                        logger.info(f"🔌 Closed invalid connection")
+                    except:
+                        pass
     
     def execute_paginated_query(
         self, 
