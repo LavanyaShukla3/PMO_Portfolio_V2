@@ -105,7 +105,7 @@ const MilestoneMarker = ({
                             key={`${monthKey}-horizontal`}
                             x={x + size / 2}
                             y={labelPosition === 'below'
-                                ? finalY + finalVerticalOffset + size + (isMobile ? 12 : 10) // Below marker - reduced spacing for compactness
+                                ? finalY + finalVerticalOffset + size + (isMobile ? 15 : 13) // Below marker - reduced spacing for compactness
                                 : finalY + finalVerticalOffset - (isMobile ? 8 : 6)} // Above marker - reduced spacing for compactness
                             textAnchor={textAnchor}
                             className="text-l fill-gray-600"
@@ -125,7 +125,7 @@ const MilestoneMarker = ({
                             key={`${monthKey}-vertical-${index}`}
                             x={x + size / 2}
                             y={labelPosition === 'below'
-                                ? finalY + finalVerticalOffset + size + (isMobile ? 12 : 10) + (index * lineHeight) // Below marker, stacked down - reduced spacing for compactness
+                                ? finalY + finalVerticalOffset + size + (isMobile ? 15 : 13) + (index * lineHeight) // Below marker, stacked down - reduced spacing for compactness
                                 : finalY + finalVerticalOffset - (isMobile ? 8 : 6) - ((verticalLabels.length - 1 - index) * lineHeight)} // Above marker, stacked up - reduced spacing for compactness
                             textAnchor={textAnchor}
                             className="text-l fill-gray-600"
@@ -147,7 +147,7 @@ const MilestoneMarker = ({
                         <text
                             key={index}
                             x={x + size / 2}
-                            y={finalY + finalVerticalOffset + size + (isMobile ? 12 : 10) + (index * lineHeight)} // Reduced space below marker for grouped labels - more compact
+                            y={finalY + finalVerticalOffset + size + (isMobile ? 15 : 13) + (index * lineHeight)} // Reduced space below marker for grouped labels - more compact
                             textAnchor="middle"
                             className="text-l fill-gray-600"
                             style={{
@@ -165,7 +165,7 @@ const MilestoneMarker = ({
                         <text
                             x={x + size / 2}
                             y={labelPosition === 'below'
-                                ? finalY + finalVerticalOffset + size + (isMobile ? 10 : 8)   // Below marker - reduced spacing for compactness
+                                ? finalY + finalVerticalOffset + size + (isMobile ? 13 : 11)   // Below marker - reduced spacing for compactness
                                 : finalY + finalVerticalOffset - (isMobile ? 8 : 6)}         // Above marker - reduced spacing for compactness
                             textAnchor="middle"
                             className="text-l fill-gray-600"
