@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import TimelineAxis from '../components/TimelineAxis';
 import QuarterlyTimelineAxis from '../components/QuarterlyTimelineAxis';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
@@ -245,13 +245,15 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         }
     };
 
-    // Calculate filtered data based on selection
-    const filteredData = selectedProgram === 'All' 
-        ? allData 
-        : allData.filter(item => item.parentName === selectedProgram);
+    // OPTIMIZATION: Memoize filtered data
+    const filteredData = useMemo(() => {
+        return selectedProgram === 'All' 
+            ? allData 
+            : allData.filter(item => item.parentName === selectedProgram);
+    }, [allData, selectedProgram]);
 
-    // Apply hierarchical grouping BEFORE pagination - ALWAYS show parent + children
-    const hierarchicalData = (() => {
+    // OPTIMIZATION: Memoize hierarchical data grouping
+    const hierarchicalData = useMemo(() => {
         const hierarchicalResult = [];
         
         // Group by program names
@@ -319,12 +321,14 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
 
         
         return hierarchicalResult;
-    })();
+    }, [filteredData]);
 
-    // Apply timeline filtering BEFORE pagination
-    const timelineFilteredData = hierarchicalData.filter(project => 
-        isProjectInTimelineViewport(project, startDate, endDate)
-    );
+    // OPTIMIZATION: Memoize timeline-filtered data
+    const timelineFilteredData = useMemo(() => {
+        return hierarchicalData.filter(project => 
+            isProjectInTimelineViewport(project, startDate, endDate)
+        );
+    }, [hierarchicalData, startDate, endDate]);
 
     // Calculate total items based on timeline-filtered data
     const totalItems = timelineFilteredData.length;
@@ -412,32 +416,33 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
     // Note: We don't need to reset page when timeline changes
     // The filtering happens automatically via the filteredData calculation
 
-    // Get unique parent names for the dropdown (to filter by parent program)
-    const programNames = ['All', ...Array.from(new Set(allData
-        .map(item => item.parentName)
-        .filter(name => name && name !== 'Root')
-    ))];
+    // OPTIMIZATION: Memoize program names
+    const programNames = useMemo(() => {
+        return ['All', ...Array.from(new Set(allData
+            .map(item => item.parentName)
+            .filter(name => name && name !== 'Root')
+        ))];
+    }, [allData]);
 
-    const handleProgramChange = (e) => {
+    // OPTIMIZATION: Memoize program change handler
+    const handleProgramChange = useCallback((e) => {
         const value = e.target.value;
         setSelectedProgram(value);
         applyFiltering(value);
-    };
+    }, []);
 
-    // Apply project scaling based on zoom level
-    const getScaledFilteredData = () => {
-        let dataToProcess = getTimelineFilteredData();
+    // OPTIMIZATION: Memoize scaled filtered data
+    const getScaledFilteredData = useMemo(() => {
+        let dataToProcess = paginatedData; // Already filtered by timeline
         
         const projectScale = responsiveConstants.PROJECT_SCALE;
         if (projectScale >= 1.0) {
-            // Zooming out - show more projects (no change needed, show all)
             return dataToProcess;
         } else {
-            // Zooming in - show fewer projects
             const targetCount = Math.max(1, Math.round(dataToProcess.length * projectScale));
             return dataToProcess.slice(0, targetCount);
         }
-    };
+    }, [paginatedData, responsiveConstants.PROJECT_SCALE]);
 
     const calculateMilestoneLabelHeight = (milestones, monthWidth = dynamicMonthWidth) => {
         if (!milestones?.length) return { total: 0, above: 0, below: 0 };
@@ -537,27 +542,38 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         return Math.max(minimumHeight, contentDrivenHeight);
     };
 
-    const getTotalHeight = () => {
-        const scaledData = getScaledFilteredData();
-        const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing - just 1px separation
+    // OPTIMIZATION: Memoize total height
+    const getTotalHeight = useMemo(() => {
+        const scaledData = getScaledFilteredData;
+        const ultraMinimalSpacing = Math.round(1 * 1.0);
         return scaledData.reduce((total, project) => {
             const barHeight = calculateBarHeight(project);
             return total + barHeight + ultraMinimalSpacing;
-        }, Math.round(8 * 1.0)); // Absolute minimum top margin - just enough to prevent clipping
-    };
+        }, Math.round(8 * 1.0));
+    }, [getScaledFilteredData]);
 
     return (
         <div className="w-full h-screen flex flex-col overflow-hidden">
             {/* Status Badge - Top Right */}
-            {loading && (
+            {loading && allData.length > 0 && (
                 <div className="absolute top-4 right-4 z-50 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium shadow-md flex items-center gap-2">
                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
                     Loading data...
                 </div>
             )}
 
+            {/* Initial Loading State */}
+            {(cacheLoading || (loading && allData.length === 0)) && !error && (
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600 text-lg">Loading Program data...</p>
+                    </div>
+                </div>
+            )}
+
             {/* Error State */}
-            {error && (
+            {error && !cacheLoading && (
                 <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded m-4">
                     <h3 className="font-semibold">Error Loading Program Data</h3>
                     <p>{error}</p>
@@ -700,9 +716,9 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                     }}
                     onScroll={handleLeftPanelScroll}
                 >
-                    <div style={{ position: 'relative', height: getTotalHeight() }}>
-                        {getScaledFilteredData().map((project, index) => {
-                            const scaledData = getScaledFilteredData();
+                    <div style={{ position: 'relative', height: getTotalHeight }}>
+                        {getScaledFilteredData.map((project, index) => {
+                            const scaledData = getScaledFilteredData;
                             const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing
                             const topMargin = Math.round(8 * 1.0); // Absolute minimum top margin - just enough to prevent clipping
                             const yOffset = scaledData
@@ -769,10 +785,10 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                     className="flex-1 overflow-y-auto overflow-x-hidden"
                     onScroll={handleGanttScroll}
                 >
-                    <div className="relative w-full" style={{ height: getTotalHeight() }}>
+                    <div className="relative w-full" style={{ height: getTotalHeight }}>
                         <svg
                             width={Math.max(800, window.innerWidth - responsiveConstants.LABEL_WIDTH)}
-                            height={getTotalHeight()}
+                            height={getTotalHeight}
                             style={{
                                 touchAction: 'pan-y',
                                 display: 'block'
@@ -780,9 +796,9 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                             className="block"
                             overflow="visible"
                         >
-                            {getScaledFilteredData().map((project, index) => {
+                            {getScaledFilteredData.map((project, index) => {
                                 // Calculate cumulative Y offset with ultra-minimal spacing to pack rows ultra-tightly
-                                const scaledData = getScaledFilteredData();
+                                const scaledData = getScaledFilteredData;
                                 const ultraMinimalSpacing = Math.round(1 * 1.0); // Ultra-minimal spacing
                                 const topMargin = Math.round(8 * 1.0); // Absolute minimum top margin - just enough to prevent clipping
                                 const yOffset = scaledData
@@ -891,4 +907,5 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
     );
 };
 
-export default ProgramGanttChart;
+// OPTIMIZATION: Wrap component with React.memo
+export default memo(ProgramGanttChart);

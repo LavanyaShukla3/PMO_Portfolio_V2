@@ -76,51 +76,54 @@ function processRawApiData(apiResponse) {
     const investmentData = apiResponse.data.investment;
 
 
-    // NEW APPROACH: Use investment records directly to create displayable portfolio items
-    // This gives us records that actually have timeline data for Gantt charts
+    // OPTIMIZATION: Use Maps for O(1) lookups instead of O(n) Array.filter
+    // This reduces complexity from O(n²) to O(n) for milestone processing
+    // Research: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
     
     // Get all Investment records (not Phases or Milestones)
     const investmentRecords = investmentData.filter(inv => inv.ROADMAP_ELEMENT === 'Investment');
     
+    // Build milestone lookup map ONCE (O(n) instead of O(n²))
+    const milestoneMap = new Map();
+    investmentData.forEach(inv => {
+        if (inv.ROADMAP_ELEMENT && inv.ROADMAP_ELEMENT.includes('Milestones')) {
+            if (!milestoneMap.has(inv.INV_EXT_ID)) {
+                milestoneMap.set(inv.INV_EXT_ID, []);
+            }
+            
+            // CRITICAL FIX: The full milestone label is in INVESTMENT_NAME, not TASK_NAME
+            const fullMilestoneLabel = inv.INVESTMENT_NAME || inv.TASK_NAME || 'Milestone';
+            
+            // DEBUG: Log milestone data
+            if (inv.TASK_NAME && inv.TASK_NAME.includes('SG3')) {
+                console.log('🔍 API DATA - Milestone from backend:', {
+                    INVESTMENT_NAME: inv.INVESTMENT_NAME,
+                    TASK_NAME: inv.TASK_NAME,
+                    fullMilestoneLabel: fullMilestoneLabel,
+                    ROADMAP_ELEMENT: inv.ROADMAP_ELEMENT
+                });
+            }
+            
+            milestoneMap.get(inv.INV_EXT_ID).push({
+                date: inv.TASK_START,
+                MILESTONE_DATE: inv.TASK_START,
+                MILESTONE_NAME: fullMilestoneLabel,
+                TASK_NAME: fullMilestoneLabel,
+                status: inv.MILESTONE_STATUS,
+                STATUS: inv.MILESTONE_STATUS,
+                label: fullMilestoneLabel,
+                isSG3: inv.ROADMAP_ELEMENT?.includes('SG3') || inv.TASK_NAME?.includes('SG3')
+            });
+        }
+    });
+    
     const processedData = [];
     
-    // Process each investment record
+    // Process each investment record with O(1) milestone lookup
     investmentRecords.forEach(investment => {
         
-        // Find milestones for this investment
-        const milestones = investmentData
-            .filter(inv => 
-                inv.INV_EXT_ID === investment.INV_EXT_ID && 
-                inv.ROADMAP_ELEMENT && 
-                inv.ROADMAP_ELEMENT.includes('Milestones')
-            )
-            .map(milestone => {
-                // CRITICAL FIX: The full milestone label is in INVESTMENT_NAME, not TASK_NAME
-                // TASK_NAME only contains "SG3", but INVESTMENT_NAME has the full text like:
-                // "Case of the Future/Market: Global" or "McKinsey Partnership/Market: Global"
-                const fullMilestoneLabel = milestone.INVESTMENT_NAME || milestone.TASK_NAME || 'Milestone';
-                
-                // DEBUG: Log milestone data
-                if (milestone.TASK_NAME && milestone.TASK_NAME.includes('SG3')) {
-                    console.log('🔍 API DATA - Milestone from backend:', {
-                        INVESTMENT_NAME: milestone.INVESTMENT_NAME,
-                        TASK_NAME: milestone.TASK_NAME,
-                        fullMilestoneLabel: fullMilestoneLabel,
-                        ROADMAP_ELEMENT: milestone.ROADMAP_ELEMENT
-                    });
-                }
-                
-                return {
-                    date: milestone.TASK_START,
-                    MILESTONE_DATE: milestone.TASK_START, // Component expects this field name
-                    MILESTONE_NAME: fullMilestoneLabel,    // Use INVESTMENT_NAME for full label
-                    TASK_NAME: fullMilestoneLabel,         // Use INVESTMENT_NAME for full label
-                    status: milestone.MILESTONE_STATUS,
-                    STATUS: milestone.MILESTONE_STATUS,    // Component expects this field name
-                    label: fullMilestoneLabel,             // Use INVESTMENT_NAME for full label
-                    isSG3: milestone.ROADMAP_ELEMENT?.includes('SG3') || milestone.TASK_NAME?.includes('SG3')
-                };
-            });
+        // O(1) lookup instead of O(n) filter!
+        const milestones = milestoneMap.get(investment.INV_EXT_ID) || [];
 
 
         // Create portfolio item using investment data (compatible with PortfolioGanttChart.jsx)

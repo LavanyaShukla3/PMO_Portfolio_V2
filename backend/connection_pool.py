@@ -59,7 +59,7 @@ class DatabricksConnectionPool:
                         server_hostname=self.server_hostname,
                         http_path=self.http_path,
                         access_token=self.access_token,
-                        _user_agent_entry="PMO-Portfolio-Pool/1.0.0"
+                        user_agent_entry="PMO-Portfolio-Pool/1.0.0"
                     )
                     self.pool.put(conn)
                     logger.info(f"✅ Connection {i+1}/{self.pool_size} created")
@@ -93,7 +93,7 @@ class DatabricksConnectionPool:
                 server_hostname=self.server_hostname,
                 http_path=self.http_path,
                 access_token=self.access_token,
-                _user_agent_entry="PMO-Portfolio-Overflow/1.0.0"
+                user_agent_entry="PMO-Portfolio-Overflow/1.0.0"
             )
     
     def return_connection(self, conn):

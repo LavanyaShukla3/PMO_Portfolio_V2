@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import TimelineViewDropdown from '../components/TimelineViewDropdown';
 import TimelineAxis from '../components/TimelineAxis';
 import QuarterlyTimelineAxis from '../components/QuarterlyTimelineAxis';
@@ -218,31 +218,36 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     useEffect(() => {
     }, [allData, loading]); // Runs when data changes and loading stops
 
-    // Create a mapping of portfolio IDs to their names from the data
-    const portfolioIdToNameMap = new Map();
+    // OPTIMIZATION: Memoize portfolio ID to name mapping
+    // Research: https://react.dev/reference/react/useMemo
+    const portfolioIdToNameMap = useMemo(() => {
+        const map = new Map();
+        
+        // Build the mapping from available COE_ROADMAP_PARENT_NAME fields
+        (allData || []).forEach(item => {
+            if (item.COE_ROADMAP_PARENT_ID && item.COE_ROADMAP_PARENT_NAME) {
+                map.set(item.COE_ROADMAP_PARENT_ID, item.COE_ROADMAP_PARENT_NAME);
+            }
+        });
+        
+        return map;
+    }, [allData]);
     
-    // Build the mapping from available COE_ROADMAP_PARENT_NAME fields
-    (allData || []).forEach(item => {
-        // The data already contains COE_ROADMAP_PARENT_NAME from the backend
-        if (item.COE_ROADMAP_PARENT_ID && item.COE_ROADMAP_PARENT_NAME) {
-            portfolioIdToNameMap.set(item.COE_ROADMAP_PARENT_ID, item.COE_ROADMAP_PARENT_NAME);
-        }
-    });
-    
-    // Add parent names and isDrillable logic to data items
-    const dataWithParentNames = (allData || []).map(item => ({
-        ...item,
-        // Use the COE_ROADMAP_PARENT_NAME field that already exists in the data
-        parentName: item.COE_ROADMAP_PARENT_NAME || 
-                   (item.COE_ROADMAP_PARENT_ID ? 
-                    portfolioIdToNameMap.get(item.COE_ROADMAP_PARENT_ID) || item.COE_ROADMAP_PARENT_ID 
-                    : 'Root'),
-        // Initialize isDrillable as false - will be set in second pass
-        isDrillable: false
-    }));
+    // OPTIMIZATION: Memoize data with parent names
+    const dataWithParentNames = useMemo(() => {
+        return (allData || []).map(item => ({
+            ...item,
+            parentName: item.COE_ROADMAP_PARENT_NAME || 
+                       (item.COE_ROADMAP_PARENT_ID ? 
+                        portfolioIdToNameMap.get(item.COE_ROADMAP_PARENT_ID) || item.COE_ROADMAP_PARENT_ID 
+                        : 'Root'),
+            isDrillable: false
+        }));
+    }, [allData, portfolioIdToNameMap]);
 
     // Build set of Program parent IDs from globally cached programData
     // programData might be an object with a 'data' property or direct array
+    // OPTIMIZATION: Already using React.useMemo - keep as is
     const programParentIds = React.useMemo(() => {
         const ids = new Set();
         
@@ -272,42 +277,55 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     }, [programData]);
 
     // Pass 2: Mark Portfolios as drillable if they have Program children
-    const dataWithDrillableLogic = dataWithParentNames.map(item => ({
-        ...item,
-        isDrillable: item.COE_ROADMAP_TYPE === 'Portfolio' && 
-                    item.CHILD_ID && 
-                    programParentIds.has(item.CHILD_ID)
-    }));
+    // OPTIMIZATION: Memoize drillable logic
+    const dataWithDrillableLogic = useMemo(() => {
+        return dataWithParentNames.map(item => ({
+            ...item,
+            isDrillable: item.COE_ROADMAP_TYPE === 'Portfolio' && 
+                        item.CHILD_ID && 
+                        programParentIds.has(item.CHILD_ID)
+        }));
+    }, [dataWithParentNames, programParentIds]);
 
-    // Calculate filtered data based on selection
-    const filteredData = selectedParent === 'All'
-        ? dataWithDrillableLogic
-        : dataWithDrillableLogic.filter(item => item.parentName === selectedParent);
+    // OPTIMIZATION: Memoize filtered data
+    const filteredData = useMemo(() => {
+        return selectedParent === 'All'
+            ? dataWithDrillableLogic
+            : dataWithDrillableLogic.filter(item => item.parentName === selectedParent);
+    }, [dataWithDrillableLogic, selectedParent]);
 
-    // Apply timeline filtering BEFORE pagination (like Program page)
-    const timelineFilteredData = filteredData.filter(project =>
-        isProjectInTimelineViewport(project, startDate, endDate)
-    );
+    // OPTIMIZATION: Memoize timeline-filtered data
+    const timelineFilteredData = useMemo(() => {
+        return filteredData.filter(project =>
+            isProjectInTimelineViewport(project, startDate, endDate)
+        );
+    }, [filteredData, startDate, endDate]);
 
-    // Get paginated data from timeline-filtered data
-    const paginatedData = getPaginatedData(timelineFilteredData, currentPage, ITEMS_PER_PAGE);
+    // OPTIMIZATION: Memoize paginated data
+    const paginatedData = useMemo(() => {
+        return getPaginatedData(timelineFilteredData, currentPage, ITEMS_PER_PAGE);
+    }, [timelineFilteredData, currentPage]);
 
-    // Handle page changes
-    const onPageChange = (newPage) => {
+    // OPTIMIZATION: Memoize page change handler
+    const onPageChange = useCallback((newPage) => {
         handlePageChange(newPage, Math.ceil(timelineFilteredData.length / ITEMS_PER_PAGE), setCurrentPage);
-    };
+    }, [timelineFilteredData.length]);
 
-    // Extract unique parent names for dropdown
-    const parentNames = ['All', ...Array.from(new Set(dataWithDrillableLogic.map(item => item.parentName).filter(name => name && name !== 'Root')))];
+    // OPTIMIZATION: Memoize parent names
+    const parentNames = useMemo(() => {
+        return ['All', ...Array.from(new Set(dataWithDrillableLogic.map(item => item.parentName).filter(name => name && name !== 'Root')))];
+    }, [dataWithDrillableLogic]);
 
-    const handleParentChange = (e) => {
+    // OPTIMIZATION: Memoize parent change handler
+    const handleParentChange = useCallback((e) => {
         const value = e.target.value;
         setSelectedParent(value);
         setCurrentPage(1); // Reset to first page when filter changes
-    };
+    }, []);
 
     // Apply project scaling based on zoom level (timeline filtering already applied)
-    const getScaledFilteredData = () => {
+    // OPTIMIZATION: Memoize scaled filtered data
+    const getScaledFilteredData = useMemo(() => {
         const projectScale = responsiveConstants.PROJECT_SCALE || 1.0;
 
         if (projectScale >= 1.0) {
@@ -316,7 +334,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
             const targetCount = Math.max(1, Math.round(paginatedData.length * projectScale));
             return paginatedData.slice(0, targetCount);
         }
-    };
+    }, [paginatedData, responsiveConstants.PROJECT_SCALE]);
 
     const calculateMilestoneLabelHeight = (milestones, monthWidth = dynamicMonthWidth, projectIndex = 0) => {
         if (!milestones?.length) return { total: 0, above: 0, below: 0 };
@@ -410,8 +428,9 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     };
 
     // Use compact spacing like Program page instead of distributing across viewport
-    const getCompactSpacingInfo = () => {
-        const scaledData = getScaledFilteredData();
+    // OPTIMIZATION: Memoize compact spacing info
+    const getCompactSpacingInfo = useMemo(() => {
+        const scaledData = getScaledFilteredData;
         if (scaledData.length === 0) return { totalHeight: 400, spacing: 1, topMargin: 8 };
 
         // Use fixed ultra-minimal spacing for compact layout (like Program page)
@@ -428,10 +447,11 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
             spacing: ultraMinimalSpacing,
             topMargin
         };
-    };
+    }, [getScaledFilteredData]);
 
-    const getTotalHeight = () => {
-        const scaledData = getScaledFilteredData();
+    // OPTIMIZATION: Memoize total height calculation
+    const getTotalHeight = useMemo(() => {
+        const scaledData = getScaledFilteredData;
         const ultraMinimalSpacing = 1; // Ultra-minimal spacing - just 1px separation
         const topMargin = 8; // Absolute minimum top margin
         
@@ -454,7 +474,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
         }
         
         return baseHeight + 20; // Add minimal bottom padding even if no milestones
-    };
+    }, [getScaledFilteredData, dynamicMonthWidth]);
 
 
     return (
@@ -484,20 +504,15 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     <span>{currentPage === 1 ? 'Loading...' : `Loading page ${currentPage}`}</span>
                 </div>
             )}
-            {/* Loading State - Show when data is still being fetched */}
+            {/* Loading State */}
             {(cacheLoading || (loading && allData.length === 0)) && !error && (
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                         <p className="text-gray-600 text-lg">Loading Portfolio data...</p>
-                        <p className="text-sm text-gray-500 mt-2">Please wait while we fetch the data</p>
                     </div>
                 </div>
             )}
-
-
-
-
 
             {/* Error State */}
             {error && !cacheLoading && (
@@ -633,9 +648,9 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     }}
                     onScroll={handleLeftPanelScroll}
                 >
-                    <div style={{ position: 'relative', height: getTotalHeight() }}>
-                        {getScaledFilteredData().map((project, index) => {
-                            const scaledData = getScaledFilteredData();
+                    <div style={{ position: 'relative', height: getTotalHeight }}>
+                        {getScaledFilteredData.map((project, index) => {
+                            const scaledData = getScaledFilteredData;
                             const ultraMinimalSpacing = 1; // Ultra-minimal spacing
                             const topMargin = 8; // Absolute minimum top margin - just enough to prevent clipping
 
@@ -702,10 +717,10 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                     className="flex-1 overflow-y-auto overflow-x-hidden"
                     onScroll={handleGanttScroll}
                 >
-                    <div className="relative w-full" style={{ height: getTotalHeight() }}>
+                    <div className="relative w-full" style={{ height: getTotalHeight }}>
                         <svg
                             width={Math.max(800, window.innerWidth - responsiveConstants.LABEL_WIDTH)}
-                            height={getTotalHeight()}
+                            height={getTotalHeight}
                             style={{
                                 touchAction: 'pan-y',
                                 display: 'block'
@@ -714,9 +729,9 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
                             overflow="visible"
                         >
                             {/* iii. Removed swimlanes from PortfolioGanttChart as requested */}
-                            {getScaledFilteredData().map((project, index) => {
+                            {getScaledFilteredData.map((project, index) => {
                                 // Calculate cumulative Y offset using compact fixed spacing
-                                const scaledData = getScaledFilteredData();
+                                const scaledData = getScaledFilteredData;
                                 const ultraMinimalSpacing = 1; // Ultra-minimal spacing
                                 const topMargin = 8; // Absolute minimum top margin
 
@@ -809,5 +824,7 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
     );
 };
 
-export default PortfolioGanttChart;
+// OPTIMIZATION: Wrap component with React.memo to prevent unnecessary re-renders
+// Research: https://react.dev/reference/react/memo
+export default memo(PortfolioGanttChart);
 

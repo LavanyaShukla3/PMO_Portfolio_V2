@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import TimelineAxis from '../components/TimelineAxis';
 import QuarterlyTimelineAxis from '../components/QuarterlyTimelineAxis';
 import MilestoneMarker from '../components/MilestoneMarker';
@@ -1452,25 +1452,22 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     // Main component return with new loading UI
     return (
         <div className="w-full flex flex-col relative">
-            {/* Status Badge - Top Right (same as Program GanttChart) */}
-            {loading && (
+            {/* Status Badge - Top Right (show only when updating existing data) */}
+            {loading && allData.length > 0 && (
                 <div className="absolute top-4 right-4 z-50 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium shadow-md flex items-center gap-2">
                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
                     Loading data...
                 </div>
             )}
-            {/* Loading State - Show when data is still being fetched */}
+            {/* Initial Loading State */}
             {(cacheLoading || (loading && allData.length === 0)) && !error && (
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                        <p className="text-gray-600 text-lg">Loading SubProgram data...</p>
-                        <p className="text-sm text-gray-500 mt-2">Please wait while we fetch the data</p>
+                        <p className="text-gray-600 text-lg">Loading Sub-Program data...</p>
                     </div>
                 </div>
             )}
-
-
 
             {/* Error State */}
             {error && !cacheLoading && (
@@ -1523,4 +1520,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     );
 };
 
-export default SubProgramGanttChart;
+// OPTIMIZATION: Wrap component with React.memo
+export default memo(SubProgramGanttChart);
+
