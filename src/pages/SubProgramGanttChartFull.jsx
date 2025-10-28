@@ -407,11 +407,24 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
 
     // Use cached data
     useEffect(() => {
-        if (subProgramData && subProgramData.projects) {
+        // FIXED: Access subProgramData.data.projects (matches fetchSubProgramData structure)
+        const projects = subProgramData?.data?.projects || subProgramData?.projects;
+        
+        console.log('🔍 SubProgram useEffect - Data structure check:', {
+            hasSubProgramData: !!subProgramData,
+            hasDataProperty: !!subProgramData?.data,
+            hasProjectsInData: !!subProgramData?.data?.projects,
+            hasProjectsDirectly: !!subProgramData?.projects,
+            projectsCount: projects?.length || 0,
+            structure: subProgramData ? Object.keys(subProgramData) : []
+        });
+        
+        if (subProgramData && projects) {
+            console.log(`✅ SubProgram data accessed successfully: ${projects.length} projects`);
             
             // Extract unique program names for dropdown (same clean logic as Portfolio page)
             const programNames = ['All', ...Array.from(new Set(
-                subProgramData.projects
+                projects
                     .map(project => project.COE_ROADMAP_PARENT_NAME || project.INV_FUNCTION || 'Unassigned')
                     .filter(name => name && name !== 'Root' && name !== 'Unassigned')
             )).sort()];
@@ -419,9 +432,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
             setProgramNames(programNames);
             
             // Filter by selected program if specified
-            let filteredProjects = subProgramData.projects;
+            let filteredProjects = projects;
             if (selectedProgramId) {
-                filteredProjects = subProgramData.projects.filter(project => 
+                filteredProjects = projects.filter(project => 
                     project.PROGRAM_ID === selectedProgramId || 
                     project.program_id === selectedProgramId ||
                     project.COE_ROADMAP_PARENT_NAME === selectedProgramName
@@ -448,9 +461,18 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 setError(`No sub-programs found for the selected program. Try selecting "All" or a different program.`);
             }
         } else if (!cacheLoading && !subProgramData) {
+            console.warn('⚠️ No SubProgram data available in cache');
             // Don't show error immediately - data might still be loading
             // Keep showing loading state
             setLoading(true);
+        } else if (!cacheLoading && subProgramData && !projects) {
+            console.error('❌ SubProgram data exists but projects array not found!', {
+                subProgramData,
+                hasData: !!subProgramData?.data,
+                dataKeys: subProgramData ? Object.keys(subProgramData) : []
+            });
+            setError('Data structure error. Please refresh the page.');
+            setLoading(false);
         }
     }, [subProgramData, cacheLoading, selectedProgramId, selectedProgramName]);
     
@@ -1502,8 +1524,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 </div>
             )}
 
-            {/* Show content even while loading (same pattern as Program GanttChart) */}
-            {(!loading || (data && data.projects)) && !error && renderGanttChart()}
+            {/* Show content only when we have data and not in error state */}
+            {data && data.projects && !error && renderGanttChart()}
             
             {/* Bottom Pagination Controls */}
             {(!loading || (data && data.projects)) && !error && actualTotalItems > 0 && (

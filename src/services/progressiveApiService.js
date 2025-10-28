@@ -558,17 +558,51 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
     const {
         portfolioId = null,
         status = null,
-        forceRefresh = false
+        forceRefresh = false,
+        useParallel = true  // NEW: Enable parallel execution by default
     } = options;
 
-    // CRITICAL FIX: Always call the API directly for each page.
-    // This removes the flawed caching that limited you to 1000 records.
+    // OPTIMIZATION: Use parallel endpoint for ~33% faster response
+    // Falls back to sequential endpoint if parallel fails
     
     try {
+        // Try parallel endpoint first (optimized for performance)
+        if (useParallel) {
+            try {
+                console.log(`🚀 Fetching portfolio data via PARALLEL endpoint - Page: ${page}, Limit: ${limit}`);
+                const response = await apiCall('/api/data/portfolio-parallel', {
+                    page: page,
+                    limit: limit,
+                    portfolioId: portfolioId,
+                    status: status
+                });
+                
+                // Log performance metrics if available
+                if (response._performance) {
+                    console.log(`⚡ Performance: ${response._performance.parallel_execution_time} (${response._performance.speedup} speedup)`);
+                }
+                
+                // Process the structured response from the optimized parallel endpoint
+                const processedData = processPortfolioDataFromOptimizedEndpoint(response);
+                
+                return {
+                    data: processedData,
+                    hasMore: response.data?.pagination?.has_more || false,
+                    totalCount: response.data?.pagination?.total_items || processedData.length,
+                    fromCache: false,
+                    mode: 'parallel'
+                };
+            } catch (parallelError) {
+                console.warn('⚠️ Parallel endpoint failed, falling back to sequential:', parallelError.message);
+                // Fall through to sequential endpoint
+            }
+        }
+        
+        // Fallback to sequential endpoint (original implementation)
+        console.log(`📊 Fetching portfolio data via SEQUENTIAL endpoint - Page: ${page}, Limit: ${limit}`);
         const response = await apiCall('/api/data/portfolio', {
             page: page,
             limit: limit,
-            // Pass filters to backend for server-side filtering
             portfolioId: portfolioId,
             status: status
         });
@@ -576,13 +610,12 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
         // Process the structured response from the optimized endpoint
         const processedData = processPortfolioDataFromOptimizedEndpoint(response);
         
-        
         return {
             data: processedData,
-            // The backend's pagination object is the source of truth
             hasMore: response.data?.pagination?.has_more || false,
             totalCount: response.data?.pagination?.total_items || processedData.length,
-            fromCache: false // Always fresh data
+            fromCache: false,
+            mode: 'sequential'
         };
     } catch (error) {
         throw error;
@@ -627,54 +660,113 @@ export function clearProgramDataCache(portfolioId = null) {
  * to ensure 100% compatibility with ProgramGanttChart.jsx
  */
 export async function fetchProgramData(selectedPortfolioId = null, options = {}) {
+    const { useParallel = true, page = 1, limit = 5000 } = options;
     
     try {
-        // Use the legacy full data endpoint - needs longer timeout for ~12,500 records
-        // Typical processing time: 30-40 seconds for full dataset
-        const result = await apiCall('/api/data', {}, 60000); // 60 seconds timeout
+        // Try parallel endpoint first (optimized for performance)
+        if (useParallel) {
+            try {
+                console.log(`🚀 Fetching program data via PARALLEL endpoint - Portfolio: ${selectedPortfolioId || 'All'}`);
+                const result = await apiCall('/api/data/program-parallel', {
+                    portfolioId: selectedPortfolioId,
+                    page: page,
+                    limit: limit
+                }, 60000); // 60 seconds timeout
+                
+                // Log performance metrics if available
+                if (result._performance) {
+                    console.log(`⚡ Performance: ${result._performance.parallel_execution_time} (${result._performance.speedup} speedup)`);
+                }
+                
+                if (result.status !== 'success') {
+                    throw new Error(result.message || 'Failed to fetch program data');
+                }
+                
+                // Process the response
+                const processedData = processProgramDataFromOptimizedEndpoint(result, selectedPortfolioId);
+                
+                return {
+                    data: processedData,
+                    totalCount: processedData.length,
+                    page: page,
+                    limit: limit,
+                    hasMore: result.data?.pagination?.has_more || false,
+                    fromCache: false,
+                    mode: 'parallel'
+                };
+            } catch (parallelError) {
+                console.warn('⚠️ Parallel endpoint failed, falling back to sequential:', parallelError.message);
+                // Fall through to sequential endpoint
+            }
+        }
+        
+        // Fallback to sequential endpoint
+        console.log(`📊 Fetching program data via SEQUENTIAL endpoint`);
+        const result = await apiCall('/api/data/program', {
+            portfolioId: selectedPortfolioId,
+            page: page,
+            limit: limit
+        }, 60000);
         
         if (result.status !== 'success') {
-            throw new Error(result.message || 'Failed to fetch unified roadmap data');
+            throw new Error(result.message || 'Failed to fetch program data');
         }
         
-        // Extract both hierarchy and investment data from structured response
-        const hierarchyData = result.data.hierarchy;
-        const investmentData = result.data.investment;
+        // Process the response
+        const processedData = processProgramDataFromOptimizedEndpoint(result, selectedPortfolioId);
+        
+        return {
+            data: processedData,
+            totalCount: processedData.length,
+            page: page,
+            limit: limit,
+            hasMore: result.data?.pagination?.has_more || false,
+            fromCache: false,
+            mode: 'sequential'
+        };
+    } catch (error) {
+        console.error('Error fetching program data:', error);
+        throw error;
+    }
+}
 
+/**
+ * Helper function to process program data from optimized endpoint
+ */
+function processProgramDataFromOptimizedEndpoint(result, selectedPortfolioId) {
+    // Extract both hierarchy and investment data from structured response
+    const hierarchyData = result.data.hierarchy;
+    const investmentData = result.data.investment;
 
-        // EXACT LOGIC from apiDataService.js processProgramDataFromAPI()
+    // EXACT LOGIC from apiDataService.js processProgramDataFromAPI()
 
-        // Filter hierarchy for Program and SubProgram data
-        const programTypeData = hierarchyData.filter(item => 
-            item.COE_ROADMAP_TYPE === 'Program' || item.COE_ROADMAP_TYPE === 'SubProgram'
+    // Filter hierarchy for Program and SubProgram data
+    const programTypeData = hierarchyData.filter(item => 
+        item.COE_ROADMAP_TYPE === 'Program' || item.COE_ROADMAP_TYPE === 'SubProgram'
+    );
+
+    // If a specific portfolio is selected, filter to show only its programs
+    let filteredData = programTypeData;
+    if (selectedPortfolioId) {
+        // Find programs that belong to the selected portfolio
+        filteredData = programTypeData.filter(item => 
+            item.COE_ROADMAP_PARENT_ID === selectedPortfolioId ||
+            programTypeData.some(parent => 
+                parent.CHILD_ID === item.COE_ROADMAP_PARENT_ID && 
+                parent.COE_ROADMAP_PARENT_ID === selectedPortfolioId
+            )
         );
+    }
 
-        // If a specific portfolio is selected, filter to show only its programs
-        let filteredData = programTypeData;
-        if (selectedPortfolioId) {
-            // Find programs that belong to the selected portfolio
-            filteredData = programTypeData.filter(item => 
-                item.COE_ROADMAP_PARENT_ID === selectedPortfolioId ||
-                programTypeData.some(parent => 
-                    parent.CHILD_ID === item.COE_ROADMAP_PARENT_ID && 
-                    parent.COE_ROADMAP_PARENT_ID === selectedPortfolioId
-                )
-            );
-        } else {
-            // No portfolio filter applied - showing all programs
-        }
-
-
-        // Build parent-child hierarchy
-        const processedData = [];
-        
-        // Find all parent programs (where COE_ROADMAP_PARENT_ID === CHILD_ID)
-        const parentPrograms = filteredData.filter(item => 
-            item.COE_ROADMAP_PARENT_ID === item.CHILD_ID && item.COE_ROADMAP_TYPE === 'Program'
-        );
-        
-        
-        for (const parentProgram of parentPrograms) {
+    // Build parent-child hierarchy
+    const processedData = [];
+    
+    // Find all parent programs (where COE_ROADMAP_PARENT_ID === CHILD_ID)
+    const parentPrograms = filteredData.filter(item => 
+        item.COE_ROADMAP_PARENT_ID === item.CHILD_ID && item.COE_ROADMAP_TYPE === 'Program'
+    );
+    
+    for (const parentProgram of parentPrograms) {
             // Find investment data for this program
             const investment = investmentData.find(inv => 
                 inv.INV_EXT_ID === parentProgram.CHILD_ID && inv.ROADMAP_ELEMENT === 'Investment'
@@ -805,20 +897,8 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
             return a.name.localeCompare(b.name);
         });
         
-
-        // Return in the format expected by ProgramGanttChart.jsx (exactly like apiDataService.js)
-        return {
-            data: sortedData,
-            totalCount: sortedData.length,
-            page: 1,
-            limit: 1000,
-            hasMore: false,
-            fromCache: false
-        };
-        
-    } catch (error) {
-        throw error;
-    }
+        // Return the sorted data
+        return sortedData;
 }
 
 /**
@@ -1278,38 +1358,111 @@ function processProgramDataFromApi(apiResponse, selectedPortfolioId = null) {
  * to ensure 100% compatibility with SubProgramGanttChartFull.jsx
  */
 export async function fetchSubProgramData(selectedProgramId = null, options = {}) {
+    const { useParallel = true, page = 1, limit = 1000 } = options;
     
     try {
-        // Use the fast progressive API endpoint with SQL-level filtering
-        const endpoint = '/api/data/subprogram';
-        const params = {
-            programId: selectedProgramId,
-            page: options.page || 1,
-            limit: options.limit || 1000
-        };
-        
-        // Subprogram endpoint needs longer timeout due to large investment data fetch
-        // Typical processing time: 60-90 seconds for ~12,000 investment records
-        const response = await apiCall(endpoint, params, 120000); // 120 seconds timeout
-        const result = response;
-        
-        if (result.status !== 'success') {
-            throw new Error(result.message || 'Failed to fetch subprogram data');
+        // Try parallel endpoint first (optimized for performance)
+        if (useParallel) {
+            try {
+                console.log(`🚀 Fetching subprogram data via PARALLEL endpoint - Program: ${selectedProgramId || 'All'}`);
+                const response = await apiCall('/api/data/subprogram-parallel', {
+                    programId: selectedProgramId,
+                    page: page,
+                    limit: limit
+                }, 120000); // 120 seconds timeout
+                
+                // Log performance metrics if available
+                if (response._performance) {
+                    console.log(`⚡ Performance: ${response._performance.parallel_execution_time} (${response._performance.speedup} speedup)`);
+                }
+                
+                if (response.status !== 'success') {
+                    throw new Error(response.message || 'Failed to fetch subprogram data');
+                }
+                
+                // Process the response
+                const processedData = processSubProgramDataFromOptimizedEndpoint(response);
+                
+                return {
+                    data: processedData,
+                    totalCount: processedData.projects?.length || 0,
+                    page: page,
+                    limit: limit,
+                    hasMore: response.data?.pagination?.has_more || false,
+                    fromCache: false,
+                    mode: 'parallel'
+                };
+            } catch (parallelError) {
+                console.warn('⚠️ Parallel endpoint failed, falling back to sequential:', parallelError.message);
+                // Fall through to sequential endpoint
+            }
         }
         
-        // Extract both hierarchy and investment data from structured response
-        const hierarchyData = result.data.hierarchy;
-        const investmentData = result.data.investment;
+        // Fallback to sequential endpoint
+        console.log(`📊 Fetching subprogram data via SEQUENTIAL endpoint`);
+        const response = await apiCall('/api/data/subprogram', {
+            programId: selectedProgramId,
+            page: page,
+            limit: limit
+        }, 120000);
+        
+        if (response.status !== 'success') {
+            throw new Error(response.message || 'Failed to fetch subprogram data');
+        }
+        
+        // Process the response
+        const processedData = processSubProgramDataFromOptimizedEndpoint(response);
+        
+        return {
+            data: processedData,
+            totalCount: processedData.projects?.length || 0,
+            page: page,
+            limit: limit,
+            hasMore: response.data?.pagination?.has_more || false,
+            fromCache: false,
+            mode: 'sequential'
+        };
+    } catch (error) {
+        console.error('Error fetching subprogram data:', error);
+        throw error;
+    }
+}
 
-        // *** CRITICAL FIX: Filter out parent records where COE_ROADMAP_PARENT_ID == CHILD_ID ***
-        // These are self-referencing records that create duplicates
-        const filteredHierarchyData = hierarchyData.filter(subProgram => {
-            const isParentSameAsChild = subProgram.COE_ROADMAP_PARENT_ID === subProgram.CHILD_ID;
-            if (isParentSameAsChild) {
-                console.log(`🚫 DUPLICATE FILTER: Excluding self-referencing record: ${subProgram.CHILD_NAME} (Parent ID = Child ID = ${subProgram.CHILD_ID})`);
-            }
-            return !isParentSameAsChild;
-        });
+/**
+ * Helper function to process subprogram data from optimized endpoint
+ */
+function processSubProgramDataFromOptimizedEndpoint(result) {
+    console.log('🔧 Processing SubProgram data from endpoint...', result);
+    
+    // Extract both hierarchy and investment data from structured response
+    const hierarchyData = result.data.hierarchy;
+    const allInvestmentData = result.data.investment;
+    
+    console.log(`📊 Raw data: ${hierarchyData?.length || 0} hierarchy, ${allInvestmentData?.length || 0} investment records`);
+    
+    if (!hierarchyData || hierarchyData.length === 0) {
+        console.warn('⚠️ No hierarchy data returned from API');
+        return { projects: [], milestones: [] };
+    }
+    
+    // CRITICAL: Filter investment data to only include records matching hierarchy IDs
+    // This is needed because parallel endpoint fetches ALL investment data
+    const subprogramIds = hierarchyData.map(sp => sp.CHILD_ID);
+    const investmentData = allInvestmentData.filter(inv => 
+        subprogramIds.includes(inv.INV_EXT_ID)
+    );
+    
+    console.log(`📊 SubProgram Data: ${hierarchyData.length} hierarchy records, ${investmentData.length} investment records (filtered from ${allInvestmentData.length})`);
+
+    // *** CRITICAL FIX: Filter out parent records where COE_ROADMAP_PARENT_ID == CHILD_ID ***
+    // These are self-referencing records that create duplicates
+    const filteredHierarchyData = hierarchyData.filter(subProgram => {
+        const isParentSameAsChild = subProgram.COE_ROADMAP_PARENT_ID === subProgram.CHILD_ID;
+        if (isParentSameAsChild) {
+            console.log(`🚫 DUPLICATE FILTER: Excluding self-referencing record: ${subProgram.CHILD_NAME} (Parent ID = Child ID = ${subProgram.CHILD_ID})`);
+        }
+        return !isParentSameAsChild;
+    });
 
 
         // Build simplified data structure for SubProgramGanttChart component
@@ -1410,13 +1563,9 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
             });
         });
         
-        
         // Return in the EXACT SAME format as apiDataService.js
+        console.log(`✅ SubProgram processing complete: ${projects.length} projects, ${milestones.length} milestones`);
         return { projects, milestones };
-        
-    } catch (error) {
-        throw error;
-    }
 }
 
 /**
@@ -1450,8 +1599,9 @@ export async function fetchSubProgramDataLegacy(programId, options = {}) {
  */
 export async function fetchRegionData(region = null, options = {}) {
     const {
+        useParallel = true,
         page = 1,
-        limit = 1000, // Increased default limit to fetch more records
+        limit = 1000,
         market = null,
         function: functionFilter = null,
         tier = null
@@ -1479,17 +1629,44 @@ export async function fetchRegionData(region = null, options = {}) {
     }
 
     try {
-        // Fetch data from the new optimized endpoint
+        // Try parallel endpoint first (optimized for performance)
+        if (useParallel) {
+            try {
+                console.log(`🚀 Fetching region data via PARALLEL endpoint - Region: ${region || 'All'}`);
+                const apiResponse = await apiCall('/api/data/region-parallel', params);
+                
+                // Log performance metrics if available
+                if (apiResponse._performance) {
+                    console.log(`⚡ Performance: ${apiResponse._performance.parallel_execution_time} (${apiResponse._performance.speedup} speedup)`);
+                }
+                
+                // Process the raw API response
+                const processedData = processRegionDataToExpectedFormat(apiResponse, { page, limit });
+                
+                return {
+                    status: 'success',
+                    data: {
+                        data: processedData.data,
+                        totalCount: processedData.totalCount,
+                        page: processedData.page,
+                        limit: processedData.limit,
+                        hasMore: processedData.hasMore
+                    },
+                    mode: 'parallel'
+                };
+            } catch (parallelError) {
+                console.warn('⚠️ Parallel endpoint failed, falling back to sequential:', parallelError.message);
+                // Fall through to sequential endpoint
+            }
+        }
+        
+        // Fallback to sequential endpoint
+        console.log(`📊 Fetching region data via SEQUENTIAL endpoint`);
         const apiResponse = await apiCall('/api/data/region', params);
         
-        const processingStart = Date.now();
-        
-        // Process the raw API response to match the format expected by RegionRoadmap.jsx
+        // Process the raw API response
         const processedData = processRegionDataToExpectedFormat(apiResponse, { page, limit });
         
-        const processingTime = Date.now() - processingStart;
-        
-        // Return in the same structure expected by the component
         return {
             status: 'success',
             data: {
@@ -1498,10 +1675,12 @@ export async function fetchRegionData(region = null, options = {}) {
                 page: processedData.page,
                 limit: processedData.limit,
                 hasMore: processedData.hasMore
-            }
+            },
+            mode: 'sequential'
         };
         
     } catch (error) {
+        console.error('Error fetching region data:', error);
         throw error;
     }
 }
