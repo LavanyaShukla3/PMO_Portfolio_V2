@@ -125,7 +125,7 @@ const processMilestonesWithPosition = (milestones, timelineStartDate, monthWidth
     return processedMilestones.sort((a, b) => a.date - b.date);
 };
 
-const PortfolioGanttChart = ({ onDrillToProgram }) => {
+const PortfolioGanttChart = ({ onDrillToProgram, onBackToWelcome }) => {
     const [selectedParent, setSelectedParent] = useState('All');
     const [responsiveConstants, setResponsiveConstants] = useState(getResponsiveConstants());
     const [loading, setLoading] = useState(false); // Will use cached data
@@ -479,6 +479,21 @@ const PortfolioGanttChart = ({ onDrillToProgram }) => {
 
     return (
         <div className="w-full h-screen flex flex-col overflow-hidden">
+            {/* Back to Welcome Button */}
+            {onBackToWelcome && (
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center gap-2">
+                    <button
+                        onClick={onBackToWelcome}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Back to Welcome
+                    </button>
+                </div>
+            )}
+            
             {/* Loading Status Badge - Top Right */}
             {loading && (
                 <div 

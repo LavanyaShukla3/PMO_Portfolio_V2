@@ -129,7 +129,7 @@ const processMilestonesWithPosition = (milestones, startDate, monthWidth = 100, 
     return processedMilestones.sort((a, b) => a.date - b.date);
 };
 
-const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackToPortfolio, onDrillToSubProgram }) => {
+const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackToPortfolio, onDrillToSubProgram, onBackToWelcome }) => {
     const [selectedProgram, setSelectedProgram] = useState('All');
     const [responsiveConstants, setResponsiveConstants] = useState(getResponsiveConstants());
     const [loading, setLoading] = useState(false); // Will use cached data
@@ -554,6 +554,32 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
 
     return (
         <div className="w-full h-screen flex flex-col overflow-hidden">
+            {/* Back to Welcome Button */}
+            {onBackToWelcome && (
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center gap-2">
+                    <button
+                        onClick={onBackToWelcome}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Back to Welcome
+                    </button>
+                    {onBackToPortfolio && (
+                        <button
+                            onClick={onBackToPortfolio}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-300 rounded-md hover:bg-blue-100 transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                            Back to Portfolio
+                        </button>
+                    )}
+                </div>
+            )}
+            
             {/* Status Badge - Top Right */}
             {loading && allData.length > 0 && (
                 <div className="absolute top-4 right-4 z-50 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium shadow-md flex items-center gap-2">

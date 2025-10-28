@@ -243,6 +243,7 @@ function AppContent() {
                                     setSelectedPortfolioName(portfolioName);
                                     setCurrentView('Program');
                                 }}
+                                onBackToWelcome={() => setCurrentView(null)}
                             />
                         ) : currentView === 'Program' ? (
                             <ProgramGanttChart
@@ -253,6 +254,7 @@ function AppContent() {
                                     setSelectedPortfolioId(null);
                                     setSelectedPortfolioName('');
                                 }}
+                                onBackToWelcome={() => setCurrentView(null)}
                                 onDrillToSubProgram={(subProgramId, subProgramName) => {
                                     // Task 1: Drill-through from Program to SubProgram
                                     setSelectedSubProgramId(subProgramId);
@@ -276,9 +278,12 @@ function AppContent() {
                                     setSelectedSubProgramId(null);
                                     setSelectedSubProgramName('');
                                 }}
+                                onBackToWelcome={() => setCurrentView(null)}
                             />
                         ) : (
-                            <RegionRoadMap />
+                            <RegionRoadMap 
+                                onBackToWelcome={() => setCurrentView(null)}
+                            />
                         )}
                     </Suspense>
                 </div>
