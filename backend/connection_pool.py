@@ -31,7 +31,7 @@ class DatabricksConnectionPool:
     - Handles connection failures gracefully
     """
     
-    def __init__(self, pool_size: int = 5):
+    def __init__(self, pool_size: int = 12):
         self.pool_size = pool_size
         self.pool = Queue(maxsize=pool_size)
         self.lock = threading.Lock()
@@ -122,4 +122,5 @@ class DatabricksConnectionPool:
 
 
 # Global connection pool instance
-connection_pool = DatabricksConnectionPool(pool_size=5)
+# Increased to 12 to handle parallel queries across portfolio/program/subprogram/region endpoints
+connection_pool = DatabricksConnectionPool(pool_size=12)

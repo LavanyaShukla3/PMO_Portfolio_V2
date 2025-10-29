@@ -240,9 +240,17 @@ def get_portfolio_data_parallel():
             # Wait for both to complete and collect results
             try:
                 hierarchy_start = time.time()
-                hierarchy_results = hierarchy_future.result(timeout=120)  # 120 second timeout
+                hierarchy_results = hierarchy_future.result(timeout=90)  # 90 second timeout
                 query_times['hierarchy'] = time.time() - hierarchy_start
                 logger.info(f"✅ Hierarchy query complete: {query_times['hierarchy']:.2f}s, {len(hierarchy_results)} portfolios")
+            except TimeoutError:
+                logger.error(f"❌ Hierarchy query TIMEOUT after 90s")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Hierarchy query timed out after 90 seconds. Please try again or contact support.',
+                    'error_type': 'timeout',
+                    'mode': 'databricks_parallel'
+                }), 504
             except Exception as e:
                 logger.error(f"❌ Hierarchy query failed: {str(e)}")
                 logger.error(f"❌ Error type: {type(e).__name__}")
@@ -251,9 +259,17 @@ def get_portfolio_data_parallel():
             
             try:
                 investment_start = time.time()
-                investment_results = investment_future.result(timeout=120)  # 120 second timeout
+                investment_results = investment_future.result(timeout=90)  # 90 second timeout
                 query_times['investment'] = time.time() - investment_start
                 logger.info(f"✅ Investment query complete: {query_times['investment']:.2f}s, {len(investment_results)} records")
+            except TimeoutError:
+                logger.error(f"❌ Investment query TIMEOUT after 90s")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Investment query timed out after 90 seconds. Please try again or contact support.',
+                    'error_type': 'timeout',
+                    'mode': 'databricks_parallel'
+                }), 504
             except Exception as e:
                 logger.error(f"❌ Investment query failed: {str(e)}")
                 raise
@@ -503,18 +519,34 @@ def get_program_data_parallel():
             
             try:
                 hierarchy_start = time.time()
-                hierarchy_results = hierarchy_future.result(timeout=120)
+                hierarchy_results = hierarchy_future.result(timeout=90)
                 query_times['hierarchy'] = time.time() - hierarchy_start
                 logger.info(f"✅ Hierarchy query complete: {query_times['hierarchy']:.2f}s, {len(hierarchy_results)} programs")
+            except TimeoutError:
+                logger.error(f"❌ Hierarchy query TIMEOUT after 90s")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Hierarchy query timed out. Please try again.',
+                    'error_type': 'timeout',
+                    'mode': 'databricks_parallel'
+                }), 504
             except Exception as e:
                 logger.error(f"❌ Hierarchy query failed: {str(e)}")
                 raise
             
             try:
                 investment_start = time.time()
-                investment_results = investment_future.result(timeout=120)
+                investment_results = investment_future.result(timeout=90)
                 query_times['investment'] = time.time() - investment_start
                 logger.info(f"✅ Investment query complete: {query_times['investment']:.2f}s, {len(investment_results)} records")
+            except TimeoutError:
+                logger.error(f"❌ Investment query TIMEOUT after 90s")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Investment query timed out. Please try again.',
+                    'error_type': 'timeout',
+                    'mode': 'databricks_parallel'
+                }), 504
             except Exception as e:
                 logger.error(f"❌ Investment query failed: {str(e)}")
                 raise
@@ -609,18 +641,34 @@ def get_subprogram_data_parallel():
             
             try:
                 hierarchy_start = time.time()
-                hierarchy_results = hierarchy_future.result(timeout=120)
+                hierarchy_results = hierarchy_future.result(timeout=90)
                 query_times['hierarchy'] = time.time() - hierarchy_start
                 logger.info(f"✅ Hierarchy query complete: {query_times['hierarchy']:.2f}s, {len(hierarchy_results)} sub-programs")
+            except TimeoutError:
+                logger.error(f"❌ Hierarchy query TIMEOUT after 90s")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Hierarchy query timed out. Please try again.',
+                    'error_type': 'timeout',
+                    'mode': 'databricks_parallel'
+                }), 504
             except Exception as e:
                 logger.error(f"❌ Hierarchy query failed: {str(e)}")
                 raise
             
             try:
                 investment_start = time.time()
-                investment_results = investment_future.result(timeout=120)
+                investment_results = investment_future.result(timeout=90)
                 query_times['investment'] = time.time() - investment_start
                 logger.info(f"✅ Investment query complete: {query_times['investment']:.2f}s, {len(investment_results)} records")
+            except TimeoutError:
+                logger.error(f"❌ Investment query TIMEOUT after 90s")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Investment query timed out. Please try again.',
+                    'error_type': 'timeout',
+                    'mode': 'databricks_parallel'
+                }), 504
             except Exception as e:
                 logger.error(f"❌ Investment query failed: {str(e)}")
                 raise
@@ -710,18 +758,34 @@ def get_region_data_parallel():
             
             try:
                 hierarchy_start = time.time()
-                hierarchy_results = hierarchy_future.result(timeout=120)
+                hierarchy_results = hierarchy_future.result(timeout=90)
                 query_times['hierarchy'] = time.time() - hierarchy_start
                 logger.info(f"✅ Hierarchy query complete: {query_times['hierarchy']:.2f}s, {len(hierarchy_results)} items")
+            except TimeoutError:
+                logger.error(f"❌ Hierarchy query TIMEOUT after 90s")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Hierarchy query timed out. Please try again.',
+                    'error_type': 'timeout',
+                    'mode': 'databricks_parallel'
+                }), 504
             except Exception as e:
                 logger.error(f"❌ Hierarchy query failed: {str(e)}")
                 raise
             
             try:
                 investment_start = time.time()
-                investment_results = investment_future.result(timeout=120)
+                investment_results = investment_future.result(timeout=90)
                 query_times['investment'] = time.time() - investment_start
                 logger.info(f"✅ Investment query complete: {query_times['investment']:.2f}s, {len(investment_results)} records")
+            except TimeoutError:
+                logger.error(f"❌ Investment query TIMEOUT after 90s")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Investment query timed out. Please try again.',
+                    'error_type': 'timeout',
+                    'mode': 'databricks_parallel'
+                }), 504
             except Exception as e:
                 logger.error(f"❌ Investment query failed: {str(e)}")
                 raise
@@ -765,6 +829,102 @@ def get_region_data_parallel():
             'status': 'error',
             'message': f'Failed to fetch region data (parallel): {str(e)}',
             'mode': 'databricks_parallel'
+        }), 500
+
+
+@app.route('/api/data/region', methods=['GET'])
+def get_region_data_sequential():
+    """
+    SEQUENTIAL: Get paginated region-filtered data.
+    This is the fallback endpoint when parallel execution fails or times out.
+    """
+    try:
+        start_time = time.time()
+        region = request.args.get('region')  # Optional
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 50))
+        
+        logger.info(f"📊 Fetching region data (sequential) - Region: {region or 'All'}, Page: {page}, Limit: {limit}")
+        
+        # Build cache key
+        cache_key = f"region_data_{region or 'all'}_p{page}_l{limit}"
+        
+        # Check cache first
+        cached_data = cache_service.get(cache_key)
+        if cached_data:
+            logger.info(f"✅ Serving from cache: {cache_key}")
+            return jsonify(cached_data)
+        
+        # Step 1: Fetch hierarchy records
+        with open(HIERARCHY_QUERY_FILE, 'r') as f:
+            hierarchy_query = f.read().strip().rstrip(';')
+        
+        hierarchy_query += " WHERE COE_ROADMAP_TYPE IN ('Sub-Program', 'Project')"
+        offset = (page - 1) * limit
+        hierarchy_query += f" ORDER BY CHILD_ID LIMIT {limit} OFFSET {offset}"
+        
+        hierarchy_start = time.time()
+        hierarchy_results = databricks_client.execute_query(hierarchy_query)
+        hierarchy_time = time.time() - hierarchy_start
+        logger.info(f"✅ Hierarchy query: {hierarchy_time:.2f}s, {len(hierarchy_results)} items")
+        
+        # Step 2: Fetch investment records for the hierarchy IDs
+        item_ids = [record['CHILD_ID'] for record in hierarchy_results]
+        investment_results = []
+        investment_time = 0
+        
+        if item_ids:
+            with open(INVESTMENT_QUERY_FILE, 'r') as f:
+                investment_query = f.read().strip().rstrip(';')
+            
+            # Use parameterized query for security
+            id_placeholders = ', '.join(['%(id' + str(i) + ')s' for i in range(len(item_ids))])
+            params = {f'id{i}': pid for i, pid in enumerate(item_ids)}
+            investment_query += f" WHERE INV_EXT_ID IN ({id_placeholders})"
+            
+            investment_start = time.time()
+            investment_results = databricks_client.execute_query(investment_query, parameters=params)
+            investment_time = time.time() - investment_start
+            logger.info(f"✅ Investment query: {investment_time:.2f}s, {len(investment_results)} records")
+        
+        total_time = time.time() - start_time
+        
+        response_data = {
+            'status': 'success',
+            'data': {
+                'hierarchy': hierarchy_results,
+                'investment': investment_results,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'region': region or 'All',
+                    'total_items': len(hierarchy_results),
+                    'has_more': len(hierarchy_results) == limit
+                }
+            },
+            'mode': 'databricks_sequential',
+            'cache_info': {
+                'cached': False,
+                'cache_key': cache_key
+            },
+            '_performance': {
+                'total_time': f"{total_time:.2f}s",
+                'hierarchy_time': f"{hierarchy_time:.2f}s",
+                'investment_time': f"{investment_time:.2f}s"
+            }
+        }
+        
+        # Cache for 5 minutes
+        cache_service.set(cache_key, response_data, ttl=300)
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"❌ Error in get_region_data_sequential: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to fetch region data: {str(e)}',
+            'mode': 'databricks_sequential'
         }), 500
 
 
