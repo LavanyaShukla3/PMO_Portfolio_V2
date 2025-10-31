@@ -2,7 +2,27 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-//import reportWebVitals from './reportWebVitals';
+
+// CRITICAL: Unregister ALL service workers and clear caches
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for (let registration of registrations) {
+      registration.unregister().then(() => {
+        console.log('✅ Service Worker unregistered');
+      });
+    }
+  });
+}
+
+// Clear all caches
+if ('caches' in window) {
+  caches.keys().then(function(names) {
+    for (let name of names) {
+      caches.delete(name);
+    }
+    console.log('✅ Service Worker caches cleared');
+  });
+}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -10,8 +30,3 @@ root.render(
     <App />
   </React.StrictMode>
 );
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-//reportWebVitals();
