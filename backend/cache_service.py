@@ -1,5 +1,5 @@
 """
-Cache service for PMO Portfolio API with Redis fallback to disk cache.
+Cache service for PMO Portfolio API using disk cache.
 Provides intelligent caching for expensive Databricks queries.
 """
 import hashlib
@@ -9,12 +9,6 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Optional, Dict
 
-try:
-    import redis
-    REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
-
 import diskcache as dc
 
 logger = logging.getLogger(__name__)
@@ -22,19 +16,14 @@ logger = logging.getLogger(__name__)
 
 class CacheService:
     """
-    Intelligent caching service that uses Redis if available, 
-    falls back to disk cache, with configurable TTL.
+    Intelligent caching service using disk cache with configurable TTL.
     """
     
     def __init__(self, cache_dir: str = "cache", default_ttl: int = 300):
         self.default_ttl = default_ttl  # 5 minutes default
         self.cache_dir = cache_dir
         
-        # Disable Redis for now - use disk cache only
-        self.redis_client = None
-        logger.info("📀 Using disk cache only (Redis disabled for this session)")
-        
-        # Always initialize disk cache as fallback
+        # Initialize disk cache
         os.makedirs(cache_dir, exist_ok=True)
         try:
             self.disk_cache = dc.Cache(cache_dir, size_limit=500_000_000)  # 500MB limit
@@ -72,17 +61,7 @@ class CacheService:
         """Get cached result for a query."""
         cache_key = self._generate_key(query, params)
         
-        # Try Redis first
-        if self.redis_client:
-            try:
-                cached = self.redis_client.get(cache_key)
-                if cached:
-                    logger.info(f"🚀 Redis cache HIT for key: {cache_key[:20]}...")
-                    return json.loads(cached)
-            except Exception as e:
-                logger.warning(f"Redis get error: {e}")
-        
-        # Fallback to disk cache
+        # Check disk cache
         if self.disk_cache:
             try:
                 cached = self.disk_cache.get(cache_key)
@@ -100,47 +79,24 @@ class CacheService:
         cache_key = self._generate_key(query, params)
         ttl = ttl or self.default_ttl
         
-        success = False
-        
-        # Try Redis first
-        if self.redis_client:
-            try:
-                self.redis_client.setex(
-                    cache_key, 
-                    ttl, 
-                    json.dumps(data, default=str)  # Handle datetime serialization
-                )
-                logger.info(f"✅ Redis cache SET for key: {cache_key[:20]}... (TTL: {ttl}s)")
-                success = True
-            except Exception as e:
-                logger.warning(f"Redis set error: {e}")
-        
-        # Always store in disk cache as backup
+        # Store in disk cache
         if self.disk_cache:
             try:
                 expire_time = datetime.now() + timedelta(seconds=ttl)
                 self.disk_cache.set(cache_key, data, expire=expire_time)
                 logger.info(f"✅ Disk cache SET for key: {cache_key[:20]}... (TTL: {ttl}s)")
-                success = True
+                return True
             except Exception as e:
                 logger.warning(f"Disk cache set error: {e}")
         
-        return success
+        return False
     
     def clear_cache(self, pattern: str = None) -> bool:
-        """Clear cache entries matching pattern."""
+        """Clear all disk cache entries (pattern not supported)."""
         try:
-            if self.redis_client and pattern:
-                keys = self.redis_client.keys(f"*{pattern}*")
-                if keys:
-                    self.redis_client.delete(*keys)
-                    logger.info(f"🗑️ Cleared {len(keys)} Redis cache entries")
-            
-            # Clear disk cache (pattern not supported, clear all)
-            if not pattern and self.disk_cache:
+            if self.disk_cache:
                 self.disk_cache.clear()
                 logger.info("🗑️ Cleared disk cache")
-            
             return True
         except Exception as e:
             logger.error(f"Cache clear error: {e}")
@@ -148,21 +104,10 @@ class CacheService:
     
     def get_cache_stats(self) -> Dict:
         """Get cache statistics."""
-        stats = {
-            "redis_available": self.redis_client is not None,
+        return {
             "disk_cache_available": self.disk_cache is not None,
-            "disk_cache_size": len(self.disk_cache) if self.disk_cache else 0,
+            "disk_cache_size": len(self.disk_cache) if self.disk_cache else 0
         }
-        
-        if self.redis_client:
-            try:
-                info = self.redis_client.info()
-                stats["redis_keys"] = info.get("db0", {}).get("keys", 0)
-                stats["redis_memory"] = info.get("used_memory_human", "N/A")
-            except Exception:
-                stats["redis_keys"] = "Error"
-        
-        return stats
 
 
 # Global cache instance
