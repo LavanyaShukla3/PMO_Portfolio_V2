@@ -882,8 +882,8 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                                     rx={3} // Keep 3px border radius
                                                     fill={project.status ? statusColors[project.status] : statusColors.Grey}
                                                     className="transition-opacity duration-150 hover:opacity-90 cursor-default"
-                                                    stroke={isProgramHeader ? "#1e40af" : "none"} // Blue border for program headers
-                                                    strokeWidth={isProgramHeader ? 1 : 0}
+                                                    stroke={"none"} // Removed blue border for program headers
+                                                    strokeWidth={0}
                                                 />
 
                                                 {/* Render milestones - positioned to align with bar center */}
