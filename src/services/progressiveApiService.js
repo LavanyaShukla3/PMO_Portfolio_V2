@@ -565,10 +565,7 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
                     status: status
                 });
                 
-                // Log performance metrics if available
-                if (response._performance) {
-                    console.log(`⚡ Performance: ${response._performance.parallel_execution_time} (${response._performance.speedup} speedup)`);
-                }
+                // Process response
                 
                 // Process the structured response from the optimized parallel endpoint
                 const processedData = processPortfolioDataFromOptimizedEndpoint(response);
@@ -658,10 +655,7 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
                     limit: limit
                 }, 60000); // 60 seconds timeout
                 
-                // Log performance metrics if available
-                if (result._performance) {
-                    console.log(`⚡ Performance: ${result._performance.parallel_execution_time} (${result._performance.speedup} speedup)`);
-                }
+                // Process result
                 
                 if (result.status !== 'success') {
                     throw new Error(result.message || 'Failed to fetch program data');
@@ -1353,10 +1347,7 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
                     limit: limit
                 }, 120000); // 120 seconds timeout
                 
-                // Log performance metrics if available
-                if (response._performance) {
-                    console.log(`⚡ Performance: ${response._performance.parallel_execution_time} (${response._performance.speedup} speedup)`);
-                }
+                // Process response
                 
                 if (response.status !== 'success') {
                     throw new Error(response.message || 'Failed to fetch subprogram data');
@@ -1610,10 +1601,7 @@ export async function fetchRegionData(region = null, options = {}) {
             try {
                 const apiResponse = await apiCall('/api/data/region-parallel', params);
                 
-                // Log performance metrics if available
-                if (apiResponse._performance) {
-                    console.log(`⚡ Performance: ${apiResponse._performance.parallel_execution_time} (${apiResponse._performance.speedup} speedup)`);
-                }
+                // Process response
                 
                 // Process the raw API response
                 const processedData = processRegionDataToExpectedFormat(apiResponse, { page, limit });

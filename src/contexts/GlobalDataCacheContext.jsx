@@ -231,10 +231,7 @@ export const GlobalDataCacheProvider = ({ children }) => {
         });
         
         try {
-            console.log(`🚀 Starting progressive data loading - ${priorityView} first, then background loading...`);
-            
             // PHASE 1: Load PRIORITY VIEW data FIRST and show UI immediately
-            console.log(`📊 Phase 1: Loading ${priorityView} data for immediate display...`);
             try {
                 let priorityData;
                 switch (priorityView) {
