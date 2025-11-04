@@ -289,7 +289,6 @@ export const GlobalDataCacheProvider = ({ children }) => {
                         dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: data });
                         return { type: 'portfolio', data };
                     }).catch(error => {
-                        console.error('❌ Failed to load portfolio data:', error);
                         return { type: 'portfolio', data: null, error };
                     })
                 );
@@ -306,7 +305,6 @@ export const GlobalDataCacheProvider = ({ children }) => {
                         dispatch({ type: ACTIONS.SET_PROGRAM_DATA, payload: data });
                         return { type: 'program', data };
                     }).catch(error => {
-                        console.error('❌ Failed to load program data:', error);
                         return { type: 'program', data: null, error };
                     })
                 );
@@ -323,7 +321,6 @@ export const GlobalDataCacheProvider = ({ children }) => {
                         dispatch({ type: ACTIONS.SET_SUBPROGRAM_DATA, payload: data });
                         return { type: 'subProgram', data };
                     }).catch(error => {
-                        console.error('❌ Failed to load subprogram data:', error);
                         return { type: 'subProgram', data: null, error };
                     })
                 );
@@ -340,7 +337,6 @@ export const GlobalDataCacheProvider = ({ children }) => {
                         dispatch({ type: ACTIONS.SET_REGION_DATA, payload: data });
                         return { type: 'region', data };
                     }).catch(error => {
-                        console.error('❌ Failed to load region data:', error);
                         return { type: 'region', data: null, error };
                     })
                 );
@@ -351,13 +347,13 @@ export const GlobalDataCacheProvider = ({ children }) => {
                 (async () => {
                     try {
                         const data = await getRegionFilterOptions();
+                        
                         dispatch({ 
                             type: ACTIONS.SET_LOADING_PROGRESS, 
                             payload: { progress: 90, step: 'Filter options loaded' }
                         });
                         return { type: 'regionFilters', data };
                     } catch (error) {
-                        console.error('❌ Failed to load region filter options:', error);
                         // Return default empty filters structure
                         return { 
                             type: 'regionFilters', 
@@ -373,8 +369,6 @@ export const GlobalDataCacheProvider = ({ children }) => {
                 })()
             );
             
-            // Wait for background data to load
-            console.log('⏳ Waiting for background data loading to complete...');
             const results = await Promise.allSettled(backgroundPromises);
             
             // Process background loading results
@@ -387,16 +381,9 @@ export const GlobalDataCacheProvider = ({ children }) => {
             const successful = results.filter(r => r.status === 'fulfilled').length;
             const failed = results.filter(r => r.status === 'rejected').length;
             
-            console.log(`✅ Background data loading completed: ${successful} successful, ${failed} failed`);
-            console.log('📊 Final data summary:', {
-                portfolio: '✅ Already loaded (shown in UI)',
-                program: results.find(r => r.status === 'fulfilled' && r.value?.type === 'program')?.value?.data?.data?.length || '❌ Failed',
-                subProgram: results.find(r => r.status === 'fulfilled' && r.value?.type === 'subProgram')?.value?.data?.projects?.length || '❌ Failed',
-                region: results.find(r => r.status === 'fulfilled' && r.value?.type === 'region')?.value?.data?.data?.data?.length || '❌ Failed',
-            });
+            
             
         } catch (error) {
-            console.error('❌ Failed to load data:', error);
             dispatch({ 
                 type: ACTIONS.SET_ERROR, 
                 payload: `Failed to load data: ${error.message}` 

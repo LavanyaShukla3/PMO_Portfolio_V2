@@ -39,7 +39,6 @@ function AppContent() {
     
     // Handle view selection from welcome page
     const handleViewSelection = useCallback((viewName) => {
-        console.log(`🎯 User selected ${viewName} view - loading with priority...`);
         setCurrentView(viewName);
         // Load the selected view's data first, then others in background
         loadDataWithPriority(viewName);

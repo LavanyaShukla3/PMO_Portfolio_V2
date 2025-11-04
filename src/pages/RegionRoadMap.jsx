@@ -277,6 +277,7 @@ const RegionRoadMap = ({ onBackToWelcome }) => {
     // Load cached filter options
     useEffect(() => {
         if (regionFilters) {
+        
             setFilterOptions(regionFilters);
             setAvailableMarkets(regionFilters.markets || []);
         }

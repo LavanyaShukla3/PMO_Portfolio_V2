@@ -410,24 +410,9 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
         // FIXED: Access subProgramData.data.projects (matches fetchSubProgramData structure)
         const projects = subProgramData?.data?.projects || subProgramData?.projects;
         
-        console.log('🔍 SubProgram useEffect - Data structure check:', {
-            hasSubProgramData: !!subProgramData,
-            hasDataProperty: !!subProgramData?.data,
-            hasProjectsInData: !!subProgramData?.data?.projects,
-            hasProjectsDirectly: !!subProgramData?.projects,
-            projectsCount: projects?.length || 0,
-            structure: subProgramData ? Object.keys(subProgramData) : [],
-            cacheLoading,
-            selectedProgramId,
-            selectedProgramName
-        });
         
         // CRITICAL FIX: Process data immediately when available, don't wait for cacheLoading
         if (subProgramData && projects && projects.length > 0) {
-            console.log(`✅ SubProgram data accessed successfully: ${projects.length} projects`);
-            console.log('📊 Sample project data:', projects[0]);
-            console.log('🔍 Projects have phases?', projects.filter(p => p.phaseData && p.phaseData.length > 0).length);
-            console.log('🔍 Projects have dates?', projects.filter(p => p.START_DATE && p.END_DATE).length);
             
             // Extract unique program names for dropdown (same clean logic as Portfolio page)
             const programNames = ['All', ...Array.from(new Set(
@@ -465,25 +450,14 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
 
             // If no projects match the filter, show a helpful message instead of error
             if (filteredProjects.length === 0 && selectedProgramId) {
-                console.warn(`⚠️ No sub-programs found for selectedProgramId: ${selectedProgramId}`);
                 setError(`No sub-programs found for the selected program. Try selecting "All" or a different program.`);
             }
         } else {
-            // IMPROVED: Better handling when data is not yet available
-            console.log('⏳ SubProgram data not yet available:', {
-                hasSubProgramData: !!subProgramData,
-                hasProjects: !!projects,
-                projectsLength: projects?.length,
-                cacheLoading
-            });
-            
             // Only show loading if cache is still loading, otherwise show an informative error
             if (cacheLoading) {
                 setLoading(true);
-                console.log('⏳ Waiting for SubProgram data to load from cache...');
             } else {
                 // Cache finished loading but no data - this is an error
-                console.error('❌ Cache loading completed but no SubProgram data available');
                 setError('Unable to load sub-program data. Please try refreshing the page.');
                 setLoading(false);
             }
@@ -690,19 +664,8 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
 
     // Render the main Gantt chart content
     const renderGanttChart = () => {
-        console.log('🎨 renderGanttChart called:', {
-            hasProcessedData: !!processedData,
-            processedDataLength: processedData?.length,
-            hasData: !!data,
-            hasProjects: !!data?.projects,
-            projectsLength: data?.projects?.length,
-            currentPage,
-            selectedProgram,
-            timelineView
-        });
         
         if (!processedData || processedData.length === 0) {
-            console.warn('⚠️ No processedData to render!');
             return (
                 <div className="flex flex-col items-center justify-center h-64">
                     <div className="text-lg text-gray-600">No sub-program data available</div>
@@ -713,23 +676,10 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
 
         const constants = getResponsiveConstants();
         const projects = processedData || [];
-
-        console.log('📐 Rendering constants:', {
-            monthWidth: constants.MONTH_WIDTH,
-            labelWidth: constants.LABEL_WIDTH,
-            barHeight: constants.BASE_BAR_HEIGHT,
-            fontSize: constants.FONT_SIZE
-        });
-
         // Get timeline date range for rendering calculations
         const { startDate, endDate } = getTimelineRangeForView(timelineView);
         
-        console.log('📅 Timeline range:', {
-            startDate: startDate?.toISOString(),
-            endDate: endDate?.toISOString(),
-            timelineView
-        });
-
+        
         // Calculate total months dynamically based on selected timeline
         const totalMonths = Math.ceil(differenceInDays(endDate, startDate) / 30);
 
@@ -931,21 +881,10 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
     // Final safety check: filter out any invalid rows before rendering
     const validProjectRows = allProjectRows.filter(row => {
         if (!row || !row.project) {
-            console.error('🚨 ERROR: Invalid row filtered out:', row);
             return false;
         }
         return true;
     });
-    
-    console.log('📊 Final rendering data:', {
-        allProjectRowsCount: allProjectRows.length,
-        validProjectRowsCount: validProjectRows.length,
-        firstRow: validProjectRows[0]?.project?.PROJECT_NAME,
-        hasPhases: validProjectRows[0]?.hasPhases,
-        renderType: validProjectRows[0]?.renderType
-    });
-    
-
     return (
         <div className="w-full flex flex-col relative bg-gray-50">
             {/* Header */}
@@ -1386,7 +1325,6 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                                         
                                                         
                                                         if (!phaseStartDate || !phaseEndDate) {
-                                                            console.log('🚨 Invalid phase dates:', phase.TASK_NAME, 'START:', phase.TASK_START, 'END:', phase.TASK_FINISH, 'Parsed START:', phaseStartDate, 'Parsed END:', phaseEndDate);
                                                             return null;
                                                         }
                                                         

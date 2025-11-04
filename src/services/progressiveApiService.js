@@ -93,17 +93,7 @@ function processRawApiData(apiResponse) {
             
             // CRITICAL FIX: The full milestone label is in INVESTMENT_NAME, not TASK_NAME
             const fullMilestoneLabel = inv.INVESTMENT_NAME || inv.TASK_NAME || 'Milestone';
-            
-            // DEBUG: Log milestone data
-            if (inv.TASK_NAME && inv.TASK_NAME.includes('SG3')) {
-                console.log('🔍 API DATA - Milestone from backend:', {
-                    INVESTMENT_NAME: inv.INVESTMENT_NAME,
-                    TASK_NAME: inv.TASK_NAME,
-                    fullMilestoneLabel: fullMilestoneLabel,
-                    ROADMAP_ELEMENT: inv.ROADMAP_ELEMENT
-                });
-            }
-            
+           
             milestoneMap.get(inv.INV_EXT_ID).push({
                 date: inv.TASK_START,
                 MILESTONE_DATE: inv.TASK_START,
@@ -161,7 +151,6 @@ function processRawApiData(apiResponse) {
 function processPortfolioDataFromFullDataset(apiResponse) {
     
     if (!apiResponse?.data?.hierarchy || !apiResponse?.data?.investment) {
-        console.warn('Invalid API response structure:', apiResponse);
         return [];
     }
 
@@ -569,7 +558,6 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
         // Try parallel endpoint first (optimized for performance)
         if (useParallel) {
             try {
-                console.log(`🚀 Fetching portfolio data via PARALLEL endpoint - Page: ${page}, Limit: ${limit}`);
                 const response = await apiCall('/api/data/portfolio-parallel', {
                     page: page,
                     limit: limit,
@@ -598,8 +586,6 @@ export async function fetchPortfolioData(page = 1, limit = 50, options = {}) {
             }
         }
         
-        // Fallback to sequential endpoint (original implementation)
-        console.log(`📊 Fetching portfolio data via SEQUENTIAL endpoint - Page: ${page}, Limit: ${limit}`);
         const response = await apiCall('/api/data/portfolio', {
             page: page,
             limit: limit,
@@ -666,7 +652,6 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
         // Try parallel endpoint first (optimized for performance)
         if (useParallel) {
             try {
-                console.log(`🚀 Fetching program data via PARALLEL endpoint - Portfolio: ${selectedPortfolioId || 'All'}`);
                 const result = await apiCall('/api/data/program-parallel', {
                     portfolioId: selectedPortfolioId,
                     page: page,
@@ -701,7 +686,6 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
         }
         
         // Fallback to sequential endpoint
-        console.log(`📊 Fetching program data via SEQUENTIAL endpoint`);
         const result = await apiCall('/api/data/program', {
             portfolioId: selectedPortfolioId,
             page: page,
@@ -725,7 +709,6 @@ export async function fetchProgramData(selectedPortfolioId = null, options = {})
             mode: 'sequential'
         };
     } catch (error) {
-        console.error('Error fetching program data:', error);
         throw error;
     }
 }
@@ -1364,7 +1347,6 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
         // Try parallel endpoint first (optimized for performance)
         if (useParallel) {
             try {
-                console.log(`🚀 Fetching subprogram data via PARALLEL endpoint - Program: ${selectedProgramId || 'All'}`);
                 const response = await apiCall('/api/data/subprogram-parallel', {
                     programId: selectedProgramId,
                     page: page,
@@ -1398,8 +1380,7 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
             }
         }
         
-        // Fallback to sequential endpoint
-        console.log(`📊 Fetching subprogram data via SEQUENTIAL endpoint`);
+        
         const response = await apiCall('/api/data/subprogram', {
             programId: selectedProgramId,
             page: page,
@@ -1432,7 +1413,6 @@ export async function fetchSubProgramData(selectedProgramId = null, options = {}
  * Helper function to process subprogram data from optimized endpoint
  */
 function processSubProgramDataFromOptimizedEndpoint(result) {
-    console.log('🔧 Processing SubProgram data from endpoint...', result);
     
     // Extract both hierarchy and investment data from structured response
     const hierarchyData = result.data.hierarchy;
@@ -1441,7 +1421,6 @@ function processSubProgramDataFromOptimizedEndpoint(result) {
     console.log(`📊 Raw data: ${hierarchyData?.length || 0} hierarchy, ${allInvestmentData?.length || 0} investment records`);
     
     if (!hierarchyData || hierarchyData.length === 0) {
-        console.warn('⚠️ No hierarchy data returned from API');
         return { projects: [], milestones: [] };
     }
     
@@ -1452,7 +1431,6 @@ function processSubProgramDataFromOptimizedEndpoint(result) {
         subprogramIds.includes(inv.INV_EXT_ID)
     );
     
-    console.log(`📊 SubProgram Data: ${hierarchyData.length} hierarchy records, ${investmentData.length} investment records (filtered from ${allInvestmentData.length})`);
 
     // *** CRITICAL FIX: Filter out parent records where COE_ROADMAP_PARENT_ID == CHILD_ID ***
     // These are self-referencing records that create duplicates
@@ -1563,8 +1541,6 @@ function processSubProgramDataFromOptimizedEndpoint(result) {
             });
         });
         
-        // Return in the EXACT SAME format as apiDataService.js
-        console.log(`✅ SubProgram processing complete: ${projects.length} projects, ${milestones.length} milestones`);
         return { projects, milestones };
 }
 
@@ -1632,7 +1608,6 @@ export async function fetchRegionData(region = null, options = {}) {
         // Try parallel endpoint first (optimized for performance)
         if (useParallel) {
             try {
-                console.log(`🚀 Fetching region data via PARALLEL endpoint - Region: ${region || 'All'}`);
                 const apiResponse = await apiCall('/api/data/region-parallel', params);
                 
                 // Log performance metrics if available
@@ -1680,7 +1655,6 @@ export async function fetchRegionData(region = null, options = {}) {
         };
         
     } catch (error) {
-        console.error('Error fetching region data:', error);
         throw error;
     }
 }
@@ -1894,17 +1868,18 @@ export async function getRegionFilterOptions() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const data = await response.json();
-        
+        const data = await response.json();        
         // Process the response to match the expected format
         if (data.status === 'success' && data.data) {
-            // Return the filter options directly (not wrapped in status/data structure)
-            return {
+            const filterOptions = {
                 regions: data.data.regions || [],
                 markets: data.data.markets || [],
                 functions: data.data.functions || [],
                 tiers: data.data.tiers || []
             };
+            
+            // Return the filter options directly (not wrapped in status/data structure)
+            return filterOptions;
         } else {
             throw new Error(data.message || 'Failed to fetch filter options');
         }
@@ -1933,7 +1908,6 @@ export async function debugSupplyChainData(limit = 10) {
         
         return await response.json();
     } catch (error) {
-        console.error('Error fetching debug supply chain data:', error);
         throw error;
     }
 }
@@ -2000,7 +1974,6 @@ export async function checkApiHealth() {
         const data = await response.json();
         return data.status === 'healthy';
     } catch (error) {
-        console.error('❌ Health check failed:', error);
         return false;
     }
 }
@@ -2014,7 +1987,6 @@ export async function testDatabaseConnection() {
         const data = await response.json();
         return data.status === 'success';
     } catch (error) {
-        console.error('❌ Database connection test failed:', error);
         return false;
     }
 }

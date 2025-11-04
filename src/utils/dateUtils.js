@@ -246,29 +246,7 @@ export const intelligentTruncateLabel = (label, currentDate, allProjectMilestone
     const minChars = 12; // Minimum readable length
     const effectiveMaxChars = Math.max(minChars, maxChars);
     
-    const truncatedLabel = label.substring(0, effectiveMaxChars) + '…';
-    
-    // DEBUG LOGGING - Uncomment to debug 36-month overlaps
-    // console.log(`🔍 TRUNCATION: "${label}"`);
-    // console.log(`  Position: ${currentLabelPosition}`);
-    // console.log(`  Left: ${leftNeighbor ? (leftNeighbor.label || leftNeighbor.MILESTONE_NAME) : 'NONE'}`);
-    // console.log(`  Right: ${rightNeighbor ? (rightNeighbor.label || rightNeighbor.MILESTONE_NAME) : 'NONE'}`);
-    // if (leftNeighbor && rightNeighbor) {
-    //     const monthsFromLeft = (currentDate - leftNeighbor.parsedDate) / (1000 * 60 * 60 * 24 * 30.44);
-    //     const monthsToRight = (rightNeighbor.parsedDate - currentDate) / (1000 * 60 * 60 * 24 * 30.44);
-    //     const leftLabel = leftNeighbor.label || leftNeighbor.MILESTONE_NAME || '';
-    //     const leftLabelWidthPx = leftLabel.length * avgCharWidth;
-    //     const leftLabelWidthMonths = leftLabelWidthPx / monthWidth;
-    //     const leftClearanceMonths = Math.max(0, monthsFromLeft - leftLabelWidthMonths - 1.0);
-    //     console.log(`  Left label: "${leftLabel}" (${leftLabel.length} chars = ${leftLabelWidthMonths.toFixed(2)} months)`);
-    //     console.log(`  Months from left: ${monthsFromLeft.toFixed(2)}`);
-    //     console.log(`  Left clearance: ${leftClearanceMonths.toFixed(2)} months`);
-    //     console.log(`  Right space: ${monthsToRight.toFixed(2)} months`);
-    //     console.log(`  Available: ${availableWidthPx.toFixed(0)}px = ${maxChars} chars`);
-    // }
-    // console.log(`  Final: "${label.length > effectiveMaxChars ? truncatedLabel : label}"`);
-    // console.log('---');
-    
+    const truncatedLabel = label.substring(0, effectiveMaxChars) + '…';   
     return truncatedLabel;
 };
 
