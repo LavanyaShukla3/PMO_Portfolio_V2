@@ -200,6 +200,13 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                             
             }
             
+            // Sort alphabetically by name
+            filteredData = filteredData.sort((a, b) => {
+                const nameA = (a.name || '').toLowerCase();
+                const nameB = (b.name || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
             setAllData(filteredData);
             setCurrentPage(1);
             setLoading(false);

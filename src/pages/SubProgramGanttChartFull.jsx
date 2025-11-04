@@ -433,6 +433,13 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                 );
             }
             
+            // Sort alphabetically by name
+            filteredProjects = filteredProjects.sort((a, b) => {
+                const nameA = (a.name || '').toLowerCase();
+                const nameB = (b.name || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
             const processedData = {
                 projects: filteredProjects,
                 totalProjects: filteredProjects.length,

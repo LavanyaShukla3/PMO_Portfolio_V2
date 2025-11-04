@@ -262,6 +262,13 @@ const RegionRoadMap = ({ onBackToWelcome }) => {
                 );
             }
             
+            // Sort alphabetically by name
+            filteredData = filteredData.sort((a, b) => {
+                const nameA = (a.name || '').toLowerCase();
+                const nameB = (b.name || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
             setAllData(filteredData);
             setTotalItems(filteredData.length); // This will be overridden by timeline filtering, but kept for compatibility
             // PAGINATION FIX: Don't reset currentPage here - let it be handled by filter change events only

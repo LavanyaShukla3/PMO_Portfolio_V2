@@ -186,7 +186,14 @@ const PortfolioGanttChart = ({ onDrillToProgram, onBackToWelcome }) => {
     // Use cached data instead of making API calls
     useEffect(() => {
         if (portfolioData && portfolioData.data) {
-            setAllData(portfolioData.data);
+            // Sort alphabetically by name
+            const sortedData = [...portfolioData.data].sort((a, b) => {
+                const nameA = (a.name || '').toLowerCase();
+                const nameB = (b.name || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
+            setAllData(sortedData);
             setCurrentPage(1);
             setLoading(false);
             setError(null);

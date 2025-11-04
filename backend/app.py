@@ -928,7 +928,7 @@ def get_region_data_sequential():
         }), 500
 
 
-@app.route('/api/data/region/filters', methods=['GET'])
+@app.route('/api/data/region-data', methods=['GET'])
 def get_region_data():
     """Get paginated region-filtered data using a correct and efficient two-step fetch."""
     try:
