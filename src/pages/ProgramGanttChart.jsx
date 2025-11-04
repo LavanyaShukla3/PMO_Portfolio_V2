@@ -831,6 +831,9 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                     .slice(0, index)
                                     .reduce((total, p) => total + calculateBarHeight(p) + ultraMinimalSpacing, topMargin);
 
+                                const isProgram = project.isProgram;
+                                const isProgramHeader = project.isProgramHeader;
+
                                 const projectStartDate = parseDate(project.startDate);
                                 const projectEndDate = parseDate(project.endDate);
                                 const startX = calculatePosition(projectStartDate, startDate, dynamicMonthWidth);
@@ -847,13 +850,12 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                 
                                 // Position Gantt bar accounting for milestone labels above it
                                 const ganttBarY = yOffset + Math.round(8 * 1.0) + milestoneHeights.above;
-                                const milestoneY = ganttBarY + 6; // Center milestones with the 12px bar
+                                // Center milestones with the bar - use actual bar height (14px for program headers, 12px for others)
+                                const actualBarHeight = isProgramHeader ? 14 : 12;
+                                const milestoneY = ganttBarY + (actualBarHeight / 2);
 
                                 // Process milestones with position information
                                 const milestones = processMilestonesWithPosition(project.milestones, startDate, dynamicMonthWidth, projectEndDate, startDate, endDate);
-
-                                const isProgram = project.isProgram;
-                                const isProgramHeader = project.isProgramHeader;
 
                                 return (
                                     <g key={`project-${project.id}-${index}`} className="project-group">
