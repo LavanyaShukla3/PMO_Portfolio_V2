@@ -735,22 +735,15 @@ def get_region_data_parallel():
             hierarchy_query = f.read().strip().rstrip(';')
         
         with open(INVESTMENT_QUERY_FILE, 'r') as f:
-            base_investment = f.read().strip().rstrip(';')
+            investment_query = f.read().strip().rstrip(';')
         
         # Filter for Sub-Program and Project records
         hierarchy_query += " WHERE COE_ROADMAP_TYPE IN ('Sub-Program', 'Project')"
         offset = (page - 1) * limit
         hierarchy_query += f" ORDER BY CHILD_ID LIMIT {limit} OFFSET {offset}"
         
-        # Investment query: Filter out NULL INV_MARKET records (user requirement)
-        investment_query = f"""
-        WITH FULL_INVESTMENT_DATA AS (
-            {base_investment}
-        )
-        SELECT * FROM FULL_INVESTMENT_DATA
-        WHERE INV_MARKET IS NOT NULL AND INV_MARKET != ''
-        LIMIT 5000
-        """
+        # Investment query: Fetch ALL investment data (trade-off for parallelism)
+        investment_query += " LIMIT 50000"
         
         # PARALLEL EXECUTION
         parallel_start = time.time()
@@ -935,7 +928,7 @@ def get_region_data_sequential():
         }), 500
 
 
-@app.route('/api/data/region', methods=['GET'])
+@app.route('/api/data/region/filters', methods=['GET'])
 def get_region_data():
     """Get paginated region-filtered data using a correct and efficient two-step fetch."""
     try:
@@ -1035,52 +1028,48 @@ def get_region_filter_options():
             logger.info("Serving region filter options from cache")
             return jsonify(cached_data)
         
-        logger.info("🔍 [FILTER DEBUG] Fetching region filter options from database")
+        logger.info("Fetching region filter options from database")
         
-        # Load the full investment query SQL file to get processed data
-        # This ensures filters match exactly what's displayed in the roadmap
-        investment_query_path = os.path.join(os.path.dirname(__file__), 'sql_queries', 'investment_query.sql')
-        with open(investment_query_path, 'r') as f:
-            base_investment_query = f.read()
+        # Get actual filter options from the same investment query used for data
+        # This ensures filter options match the available data
         
-        # Wrap the investment query to extract distinct filter values
-        # Only include records where INV_MARKET is NOT NULL (as per user requirement)
+        # Read the investment query file
+        with open(INVESTMENT_QUERY_FILE, 'r') as f:
+            investment_query = f.read().strip().rstrip(';')
+        
+        # Modify query to get unique filter values
         filter_query = f"""
-        WITH INVESTMENT_DATA AS (
-            {base_investment_query}
+        WITH base_data AS (
+            {investment_query}
         )
         SELECT DISTINCT
-            -- Region: part before '/' in INV_MARKET, or entire INV_MARKET if no '/'
             CASE 
+                WHEN INV_MARKET = '-Unrecognised-' THEN 'Unrecognised'
+                WHEN INV_MARKET IS NULL OR INV_MARKET = '' THEN 'Unknown'
                 WHEN LOCATE('/', INV_MARKET) > 0 THEN SUBSTR(INV_MARKET, 1, LOCATE('/', INV_MARKET) - 1)
                 ELSE INV_MARKET
             END as region,
-            -- Market: part after '/' in INV_MARKET, or NULL if no '/'
             CASE 
+                WHEN INV_MARKET = '-Unrecognised-' THEN 'Unrecognised'
+                WHEN INV_MARKET IS NULL OR INV_MARKET = '' THEN 'Unknown'
                 WHEN LOCATE('/', INV_MARKET) > 0 THEN SUBSTR(INV_MARKET, LOCATE('/', INV_MARKET) + 1)
-                ELSE NULL
+                ELSE 'Unknown'
             END as market,
             INV_FUNCTION as function,
             CAST(INV_TIER as STRING) as tier
-        FROM INVESTMENT_DATA
+        FROM base_data 
         WHERE INV_MARKET IS NOT NULL 
-          AND INV_MARKET != ''
-        LIMIT 10000
+        AND INV_MARKET != ''
         """
-        
-        logger.info(f"🔍 [FILTER DEBUG] Query length: {len(filter_query)} chars (will auto-limit to 100 if >2000 and no LIMIT)")
         
         # Execute query
         results = databricks_client.execute_query(filter_query)
-        logger.info(f"🔍 [FILTER DEBUG] Query returned {len(results)} rows from database")
         
         # Process results to create filter options
         regions = set()
         markets = set()
         functions = set()
         tiers = set()
-        
-        logger.info(f"🔍 [FILTER DEBUG] Processing {len(results)} rows to extract distinct values...")
         
         for row in results:
             if row.get('region'):
@@ -1092,12 +1081,6 @@ def get_region_filter_options():
             if row.get('tier'):
                 tiers.add(row['tier'])
         
-        logger.info(f"🔍 [FILTER DEBUG] Extracted distinct values:")
-        logger.info(f"   - Regions: {len(regions)} unique values: {sorted(list(regions))}")
-        logger.info(f"   - Markets: {len(markets)} unique values: {sorted(list(markets))}")
-        logger.info(f"   - Functions: {len(functions)} unique values: {sorted(list(functions))}")
-        logger.info(f"   - Tiers: {len(tiers)} unique values: {sorted(list(tiers))}")
-        
         response_data = {
             'status': 'success',
             'data': {
@@ -1108,17 +1091,8 @@ def get_region_filter_options():
             }
         }
         
-        logger.info(f"🔍 [FILTER DEBUG] Response data structure: {response_data.keys()}")
-        logger.info(f"🔍 [FILTER DEBUG] Response data.data structure: {response_data['data'].keys()}")
-        logger.info(f"🔍 [FILTER DEBUG] Final response being sent to frontend:")
-        logger.info(f"   - regions array length: {len(response_data['data']['regions'])}")
-        logger.info(f"   - markets array length: {len(response_data['data']['markets'])}")
-        logger.info(f"   - functions array length: {len(response_data['data']['functions'])}")
-        logger.info(f"   - tiers array length: {len(response_data['data']['tiers'])}")
-        
         # Cache for 30 minutes
         cache_service.set(cache_key, response_data, ttl=1800)
-        logger.info(f"🔍 [FILTER DEBUG] Cached response with key: {cache_key}")
         
         return jsonify(response_data)
         

@@ -251,8 +251,16 @@ export const GlobalDataCacheProvider = ({ children }) => {
                         dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: { projects: [] } }); // Dummy to unblock UI
                         break;
                     case 'Region':
-                        priorityData = await fetchRegionData(null, { page: 1, limit: 5000 });
-                        dispatch({ type: ACTIONS.SET_REGION_DATA, payload: priorityData });
+                        // Load Region data AND filter options in parallel for better UX
+                        const [regionData, filterOptions] = await Promise.all([
+                            fetchRegionData(null, { page: 1, limit: 5000 }),
+                            getRegionFilterOptions().catch(err => {
+                                console.error('Failed to load filter options:', err);
+                                return { regions: [], markets: [], functions: [], tiers: [] };
+                            })
+                        ]);
+                        dispatch({ type: ACTIONS.SET_REGION_DATA, payload: regionData });
+                        dispatch({ type: ACTIONS.SET_REGION_FILTERS, payload: filterOptions });
                         dispatch({ type: ACTIONS.SET_PORTFOLIO_DATA, payload: { projects: [] } }); // Dummy to unblock UI
                         break;
                     default:
@@ -339,32 +347,34 @@ export const GlobalDataCacheProvider = ({ children }) => {
                 );
             }
             
-            // Region filter options (always load)
-            backgroundPromises.push(
-                (async () => {
-                    try {
-                        const data = await getRegionFilterOptions();
-                        
-                        dispatch({ 
-                            type: ACTIONS.SET_LOADING_PROGRESS, 
-                            payload: { progress: 90, step: 'Filter options loaded' }
-                        });
-                        return { type: 'regionFilters', data };
-                    } catch (error) {
-                        // Return default empty filters structure
-                        return { 
-                            type: 'regionFilters', 
-                            data: {
-                                regions: [],
-                                markets: [],
-                                functions: [],
-                                tiers: []
-                            },
-                            error
-                        };
-                    }
-                })()
-            );
+            // Region filter options (only load in background if not already loaded in Phase 1)
+            if (priorityView !== 'Region') {
+                backgroundPromises.push(
+                    (async () => {
+                        try {
+                            const data = await getRegionFilterOptions();
+                            
+                            dispatch({ 
+                                type: ACTIONS.SET_LOADING_PROGRESS, 
+                                payload: { progress: 90, step: 'Filter options loaded' }
+                            });
+                            return { type: 'regionFilters', data };
+                        } catch (error) {
+                            // Return default empty filters structure
+                            return { 
+                                type: 'regionFilters', 
+                                data: {
+                                    regions: [],
+                                    markets: [],
+                                    functions: [],
+                                    tiers: []
+                                },
+                                error
+                            };
+                        }
+                    })()
+                );
+            }
             
             const results = await Promise.allSettled(backgroundPromises);
             
