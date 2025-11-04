@@ -831,9 +831,6 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                     .slice(0, index)
                                     .reduce((total, p) => total + calculateBarHeight(p) + ultraMinimalSpacing, topMargin);
 
-                                const isProgram = project.isProgram;
-                                const isProgramHeader = project.isProgramHeader;
-
                                 const projectStartDate = parseDate(project.startDate);
                                 const projectEndDate = parseDate(project.endDate);
                                 const startX = calculatePosition(projectStartDate, startDate, dynamicMonthWidth);
@@ -842,6 +839,10 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
                                 
                                 // Debug block removed
 
+                                // Declare project type flags first
+                                const isProgram = project.isProgram;
+                                const isProgramHeader = project.isProgramHeader;
+                                
                                 // Calculate the project's actual content height
                                 const totalHeight = calculateBarHeight(project);
                                 
