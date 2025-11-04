@@ -114,6 +114,8 @@ function dataReducer(state, action) {
                 ...state,
                 loadingProgress: action.payload.progress,
                 loadingStep: action.payload.step,
+                // Mark background loading as complete when progress reaches 100%
+                isBackgroundLoading: action.payload.progress >= 100 ? false : state.isBackgroundLoading,
             };
             
         case ACTIONS.SET_PORTFOLIO_DATA:
@@ -388,7 +390,11 @@ export const GlobalDataCacheProvider = ({ children }) => {
             const successful = results.filter(r => r.status === 'fulfilled').length;
             const failed = results.filter(r => r.status === 'rejected').length;
             
-            
+            // Final dispatch to mark all loading complete
+            dispatch({ 
+                type: ACTIONS.SET_LOADING_PROGRESS, 
+                payload: { progress: 100, step: '✅ All data loaded successfully' }
+            });
             
         } catch (error) {
             dispatch({ 
