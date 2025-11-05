@@ -1316,7 +1316,7 @@ const SubProgramGanttChart = ({ selectedSubProgramId, selectedSubProgramName, se
                                     
                                     // Position Gantt bar slightly higher for better visual alignment with left panel
                                     const ganttBarY = yOffset + Math.round(4 * 1.0) + milestoneLabelHeights.above;
-                                    const milestoneY = ganttBarY + Math.round(constants.BASE_BAR_HEIGHT / 2); // Center milestones with bar
+                                    const milestoneY = ganttBarY + 6; // Center milestones with the 12px bar (matches GanttBar component)
                                     
                                     return (
                                         <g key={`${row.PROJECT_ID}-${index}`}>
