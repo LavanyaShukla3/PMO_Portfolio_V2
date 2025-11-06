@@ -428,7 +428,7 @@ const ProgramGanttChart = ({ selectedPortfolioId, selectedPortfolioName, onBackT
         return ['All', ...Array.from(new Set(allData
             .map(item => item.parentName)
             .filter(name => name && name !== 'Root')
-        ))];
+        )).sort()];
     }, [allData]);
 
     // OPTIMIZATION: Memoize program change handler

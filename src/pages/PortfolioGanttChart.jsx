@@ -320,7 +320,7 @@ const PortfolioGanttChart = ({ onDrillToProgram, onBackToWelcome }) => {
 
     // OPTIMIZATION: Memoize parent names
     const parentNames = useMemo(() => {
-        return ['All', ...Array.from(new Set(dataWithDrillableLogic.map(item => item.parentName).filter(name => name && name !== 'Root')))];
+        return ['All', ...Array.from(new Set(dataWithDrillableLogic.map(item => item.parentName).filter(name => name && name !== 'Root'))).sort()];
     }, [dataWithDrillableLogic]);
 
     // OPTIMIZATION: Memoize parent change handler
