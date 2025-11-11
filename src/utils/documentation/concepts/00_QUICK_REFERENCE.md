@@ -6,7 +6,7 @@ This is your **cheat sheet** for quick reference. For detailed explanations, ref
 
 ---
 
-## 📚 The 7-Step Journey
+## 📚 The 10-Step Journey
 
 ### **Step 1: Components & JSX** → `01_COMPONENTS_AND_JSX.md`
 - Components are JavaScript functions that return JSX
@@ -27,30 +27,45 @@ This is your **cheat sheet** for quick reference. For detailed explanations, ref
 - Always cleanup subscriptions/listeners
 - `[]` = run once, `[a, b]` = run when a or b changes
 
-### **Step 4: Performance Optimization** → `04_PERFORMANCE_OPTIMIZATION.md`
+### **Step 4: React Hooks** → `04_REACT_HOOKS.md`
+- All hooks explained: useState, useEffect, useCallback, useMemo, useRef, useReducer, useContext
+- Interview-focused with conceptual breakdown
+- Rules of hooks and common patterns
+- Examples from your PMO Portfolio project
+
+### **Step 5: Performance Optimization** → `05_PERFORMANCE_OPTIMIZATION.md`
 - `useMemo` memoizes expensive calculations
 - `useCallback` memoizes function references
 - `React.memo` prevents unnecessary re-renders
 - `lazy()` + `Suspense` for code splitting
 - Only optimize when you have proof of a problem
 
-### **Step 5: Context API** → `05_CONTEXT_API.md`
+### **Step 6: Context API Deep Dive** → `06_CONTEXT_API_DEEP_DIVE.md`
 - Share data without prop drilling
-- Global state management
-- Your `GlobalDataCacheContext` is a perfect example
-- Use for theme, auth, global cache
+- Global state management with Context + useReducer
+- Your `GlobalDataCacheContext` as primary example
+- Provider/consumer pattern explained
 
-### **Step 6: Advanced Patterns** → `06_ADVANCED_PATTERNS.md`
-- `useRef` for DOM access and persistent values
-- `useReducer` for complex state logic
+### **Step 7: Best Practices & Refactoring** → `07_BEST_PRACTICES_REFACTORING.md`
+- Project structure and organization
+- Code quality and maintainability
+- Common pitfalls and solutions
+- Refactoring patterns from your project
+
+### **Step 8: Advanced Patterns** → `08_ADVANCED_PATTERNS.md`
 - Custom hooks for reusable logic
 - Compound components pattern
+- Render props and HOCs
+- Real-world examples
 
-### **Step 7: Best Practices** → `07_BEST_PRACTICES.md`
-- Project structure and organization
-- Common pitfalls and solutions
-- Interview preparation
-- Production-ready patterns
+### **Step 9: Interview Preparation** → `09_INTERVIEW_PREPARATION.md`
+- Common React interview questions
+- Project explanation templates
+- How to present your PMO Portfolio
+- Coding challenges and practice
+
+### **Step 10: Quick Reference** → `00_QUICK_REFERENCE.md`
+- This document - your cheat sheet for all concepts
 
 ---
 

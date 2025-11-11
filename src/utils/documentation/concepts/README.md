@@ -8,16 +8,19 @@ This learning path is specifically designed for you to master React by understan
 
 ## 📚 Learning Structure
 
-### 7 Progressive Steps
+### 10 Progressive Steps
 Each step builds on the previous, taking you from beginner to interview-ready:
 
 1. **[Quick Reference](./00_QUICK_REFERENCE.md)** - Cheat sheet for all concepts
 2. **[Components & JSX](./01_COMPONENTS_AND_JSX.md)** - Building blocks of React
 3. **[State Management](./02_STATE_MANAGEMENT.md)** - Making components interactive
 4. **[useEffect & Lifecycle](./03_USE_EFFECT_LIFECYCLE.md)** - Side effects and data fetching
-5. **[Performance Optimization](./04_PERFORMANCE_OPTIMIZATION.md)** *(Coming next)*
-6. **[Context API](./05_CONTEXT_API.md)** *(Coming next)*
-7. **[Advanced Patterns & Best Practices](./06_ADVANCED_PATTERNS.md)** *(Coming next)*
+5. **[React Hooks](./04_REACT_HOOKS.md)** - All hooks explained, interview-focused
+6. **[Performance Optimization](./05_PERFORMANCE_OPTIMIZATION.md)** - Make your app fast and efficient
+7. **[Context API Deep Dive](./06_CONTEXT_API_DEEP_DIVE.md)** - Global state management
+8. **[Best Practices & Refactoring](./07_BEST_PRACTICES_REFACTORING.md)** - Clean code, maintainability
+9. **[Advanced Patterns](./08_ADVANCED_PATTERNS.md)** - Custom hooks, HOCs, render props
+10. **[Interview Preparation](./09_INTERVIEW_PREPARATION.md)** - Common questions, project explanation
 
 ### 📖 Main Learning Roadmap
 Start with **[REACT_LEARNING_ROADMAP.md](./REACT_LEARNING_ROADMAP.md)** for:
@@ -46,11 +49,15 @@ Day 5-7: Study 03_USE_EFFECT_LIFECYCLE.md
 
 ### Week 3: Intermediate Concepts (Days 8-14)
 ```
-Day 8-10:  Performance Optimization
+Day 8-9:   Study 04_REACT_HOOKS.md
+           Analyze: All hooks in your project
+           Exercise: Build custom hooks
+
+Day 10-11: Study 05_PERFORMANCE_OPTIMIZATION.md
            useMemo, useCallback, React.memo, lazy loading
 
-Day 11-13: Context API Deep Dive
-           Study GlobalDataCacheContext.jsx
+Day 12-13: Study 06_CONTEXT_API_DEEP_DIVE.md
+           Analyze: GlobalDataCacheContext.jsx
            Understand provider/consumer pattern
 
 Day 14:    Build something from scratch using all concepts
@@ -58,15 +65,15 @@ Day 14:    Build something from scratch using all concepts
 
 ### Week 4: Advanced & Interview Prep (Days 15-21)
 ```
-Day 15-16: Advanced Patterns
-           useRef, useReducer, custom hooks
+Day 15-16: Study 07_BEST_PRACTICES_REFACTORING.md
+           Refactor a component, code organization
 
-Day 17-18: Best Practices & Refactoring
-           Code organization, common mistakes
+Day 17-18: Study 08_ADVANCED_PATTERNS.md
+           Custom hooks, HOCs, render props
 
-Day 19-21: Interview Preparation
+Day 19-21: Study 09_INTERVIEW_PREPARATION.md
            Practice explaining your project
-           Mock interviews
+           Mock interviews, common questions
            Build demo projects
 ```
 
