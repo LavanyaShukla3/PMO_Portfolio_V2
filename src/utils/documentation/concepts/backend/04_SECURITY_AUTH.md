@@ -90,6 +90,55 @@ CORS(app, origins=frontend_urls)
 ### How CORS Works:
 
 #### 1. Preflight Request (for POST, PUT, DELETE)
+🌟 What Is a Preflight Request? (Simple English)
+A preflight request is the browser saying:
+
+👉 **“Before I send a dangerous request (POST/PUT/DELETE), let me first ask the server:
+Is it safe for me to send this?”
+This "asking" happens through a special HTTP request:
+```
+OPTIONS /api/data
+```
+🧠 Why does the browser do this?
+Because POST, PUT, DELETE (and some headers) are considered dangerous.
+
+Why?
+Because they change data on the server.
+So the browser wants to protect the user by verifying:
+
+✔ Is this frontend allowed to call this backend?
+✔ Does the server allow this method (POST/PUT/DELETE)?
+✔ Does the server allow these headers (Content-Type, Authorization)?
+
+This is enforced by the browser as part of CORS (Cross Origin Resource Sharing).
+🛠 What the Preflight Actually Looks Like
+Step 1 — Browser sends OPTIONS request
+```
+OPTIONS /api/data
+Origin: http://localhost:3000
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: Content-Type, Authorization
+```
+Step 2 — Server responds: YES or NO
+Example:
+```
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: http://localhost:3000
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE
+Access-Control-Allow-Headers: Content-Type, Authorization
+```
+This means:
+
+👉 “Yes, your frontend is allowed!
+Go ahead and make the POST request.”
+
+Step 3 — Browser sends the real POST
+
+After the preflight succeeds, then your actual request goes:
+```
+POST /api/data
+
+```
 ```
 Browser sends OPTIONS request first:
 OPTIONS /api/data HTTP/1.1
@@ -251,6 +300,59 @@ Header (algorithm)                     Payload (data)       Signature
 **Cons:**
 - ❌ Can't revoke tokens (valid until expiration)
 - ❌ Token size (larger than session ID)
+
+✅ 1. What is a cookie in a website? What is a cookie in this context?
+🍪 Website Cookie = Small piece of data stored in your browser by a website.
+
+Your browser saves it like:
+session_id = abcd123456
+theme = dark
+cart_items = 4
+
+A cookie is just key–value data stored on your device, NOT on the server.
+✔ Why do websites use cookies?
+
+To remember things between page loads.
+For example:
+
+Stay logged in
+Save items in shopping cart
+Remember theme (dark/light mode)
+Remember language
+
+🚨 In Authentication context, a cookie usually stores:
+
+A session ID (for session-based auth)
+or
+A JWT token (if the site uses cookie storage)
+
+So in auth:
+📌 Cookie = the badge given to you so the server knows who you are.
+
+✅ 2. Is Session-Based Auth needed only for websites with login (Netflix, Amazon)? Or also for websites without login?
+✔ Websites WITH login → MUST use session/auth
+
+Examples:
+
+Netflix
+Amazon
+Gmail
+Flipkart
+Instagram
+Why?
+Because they need to recognize which user is requesting what.
+
+✔ Websites WITHOUT login → may also use cookies/sessions
+Even websites without accounts use cookies/sessions for:
+
+Tracking clicks
+Remembering dark mode
+Saving items in cart even without login
+Analytics (Google Analytics)
+Showing “recently viewed items”
+Preventing bots
+🟢 But they may not need authentication in that case.
+They just use cookies to store small information.
 
 ### 3. API Keys (Simple, Your Databricks Uses This!)
 ```python
